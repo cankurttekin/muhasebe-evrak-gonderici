@@ -8,6 +8,11 @@ export default {
   theme: {
     extend: {
       colors: {
+        zinc: {
+          750: '#2b2b30',
+          850: '#1f1f23',
+          950: '#0e0e11',
+        },
         brand: {
           50: '#eff6ff',
           100: '#dbeafe',

@@ -33,14 +33,14 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
         {/* Brand */}
 
-<div className="flex items-center gap-2.5">
-  <div className="h-8 rounded-lg bg-blue-600 px-3 flex items-center justify-center text-white shadow-sm shadow-blue-200 dark:shadow-none">
-    <Send className="w-4 h-4 mr-2 shrink-0" />
-    <span className="font-bold tracking-tight text-sm whitespace-nowrap">
-      Evrak Gönderici
-    </span>
-  </div>
-</div>
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 rounded-lg bg-blue-600 px-3 flex items-center justify-center text-white shadow-sm shadow-blue-200 dark:shadow-none">
+            <Send className="w-4 h-4 mr-2 shrink-0" />
+            <span className="font-bold tracking-tight text-sm whitespace-nowrap">
+              Evrak Gönderici
+            </span>
+          </div>
+        </div>
 
         {/* Center: Period Selector */}
         <div className="flex items-center gap-2">

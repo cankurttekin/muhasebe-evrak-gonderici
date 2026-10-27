@@ -102,10 +102,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const isConnected = waStatus?.status === 'CONNECTED';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-700 w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col text-slate-800 dark:text-zinc-100">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 dark:border-zinc-700 flex items-center justify-between bg-slate-50 dark:bg-zinc-850">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col text-slate-800 dark:text-zinc-100">
+        {/* Header - Fixed dark background */}
+        <div className="px-6 py-4 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between bg-slate-50 dark:bg-zinc-850">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center">
               <Settings className="w-4 h-4" />
@@ -117,16 +117,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto space-y-5">
-          {/* SECTION 1: WhatsApp Bağlantısı & Durumu */}
-          <div className="bg-slate-50 dark:bg-zinc-750 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 space-y-3">
+        <div className="p-6 overflow-y-auto space-y-5 bg-white dark:bg-zinc-900">
+          {/* SECTION WhatsApp Bağlantısı & Durumu - Fixed dark background */}
+          <div className="bg-slate-50 dark:bg-zinc-850 p-4 rounded-xl border border-slate-200 dark:border-zinc-750 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
                 <Smartphone className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -171,7 +171,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     className="w-48 h-48 mx-auto rounded-lg"
                   />
                 </div>
-                <div className="text-left text-[11px] text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-800 p-3 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-1">
+                <div className="text-left text-[11px] text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-900 p-3 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-1">
                   <div className="font-semibold text-slate-800 dark:text-zinc-200">Telefonunuzdan Bağlanın:</div>
                   <ol className="list-decimal pl-4 space-y-0.5">
                     <li>Telefonunuzda WhatsApp'ı açın (Normal veya Business).</li>
@@ -203,7 +203,48 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             )}
           </div>
 
-          {/* SECTION 2: Görünüm Teması (Otomatik / Açık / Koyu) */}
+
+          {/* SECTION Mesaj Şablonu */}
+          <form onSubmit={handleSave} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
+                <MessageSquare className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span>Varsayılan WhatsApp Mesaj Şablonu</span>
+              </label>
+              <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                Kullanılabilir etiketler: <code className="bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono text-blue-600 dark:text-blue-400">{'{UNVAN}'}</code>, <code className="bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono text-blue-600 dark:text-blue-400">{'{DONEM}'}</code>, <code className="bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono text-blue-600 dark:text-blue-400">{'{BELGELER}'}</code>
+              </p>
+              <textarea
+                value={template}
+                onChange={(e) => setTemplate(e.target.value)}
+                rows={3}
+                className="w-full text-xs font-sans border border-slate-300 dark:border-zinc-750 rounded-lg p-2.5 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+
+            {/* Live Preview - Fixed dark background */}
+            <div className="bg-slate-50 dark:bg-zinc-850 rounded-xl p-3 border border-slate-200 dark:border-zinc-750 space-y-1">
+              <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-zinc-400 tracking-wider">
+                Mesaj Önizlemesi
+              </span>
+              <div className="text-xs text-slate-700 dark:text-zinc-200 whitespace-pre-wrap font-sans bg-white dark:bg-zinc-900 p-2.5 rounded-lg border border-slate-200 dark:border-zinc-750">
+                {previewMessage}
+              </div>
+            </div>
+
+            {/* Data Path - Fixed dark background */}
+            <div className="bg-slate-50 dark:bg-zinc-850 rounded-xl p-2.5 border border-slate-200 dark:border-zinc-750 space-y-1">
+              <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-zinc-400 tracking-wider">
+                Zirve Veri Klasörü
+              </span>
+              <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 p-1.5 rounded border border-slate-200 dark:border-zinc-750 truncate">
+                <HardDrive className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                <span className="truncate">{dataPath}</span>
+              </div>
+            </div>
+
+          {/* SECTION Görünüm Teması */}
           <div className="space-y-2">
             <label className="block text-xs font-bold text-slate-800 dark:text-zinc-200">
               Görünüm Teması
@@ -215,7 +256,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
                   currentTheme === 'system'
                     ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 ring-2 ring-blue-500/20'
-                    : 'border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300'
+                    : 'border-slate-200 dark:border-zinc-750 bg-slate-50 dark:bg-zinc-850 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300'
                 }`}
               >
                 <Monitor className="w-4 h-4 text-blue-500" />
@@ -227,7 +268,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
                   currentTheme === 'light'
                     ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 ring-2 ring-blue-500/20'
-                    : 'border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300'
+                    : 'border-slate-200 dark:border-zinc-750 bg-slate-50 dark:bg-zinc-850 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300'
                 }`}
               >
                 <Sun className="w-4 h-4 text-amber-500" />
@@ -239,7 +280,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
                   currentTheme === 'dark'
                     ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 ring-2 ring-blue-500/20'
-                    : 'border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300'
+                    : 'border-slate-200 dark:border-zinc-750 bg-slate-50 dark:bg-zinc-850 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300'
                 }`}
               >
                 <Moon className="w-4 h-4 text-indigo-400" />
@@ -248,48 +289,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          {/* SECTION 3: Mesaj Şablonu */}
-          <form onSubmit={handleSave} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
-                <MessageSquare className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                <span>Varsayılan WhatsApp Mesaj Şablonu</span>
-              </label>
-              <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-                Kullanılabilir etiketler: <code className="bg-slate-100 dark:bg-zinc-700 px-1 py-0.5 rounded font-mono text-blue-600 dark:text-blue-400">{'{UNVAN}'}</code>, <code className="bg-slate-100 dark:bg-zinc-700 px-1 py-0.5 rounded font-mono text-blue-600 dark:text-blue-400">{'{DONEM}'}</code>, <code className="bg-slate-100 dark:bg-zinc-700 px-1 py-0.5 rounded font-mono text-blue-600 dark:text-blue-400">{'{BELGELER}'}</code>
-              </p>
-              <textarea
-                value={template}
-                onChange={(e) => setTemplate(e.target.value)}
-                rows={3}
-                className="w-full text-xs font-sans border border-slate-300 dark:border-zinc-700 rounded-lg p-2.5 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
-
-            {/* Live Preview */}
-            <div className="bg-slate-50 dark:bg-zinc-750 rounded-xl p-3 border border-slate-200 dark:border-zinc-700">
-              <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">
-                Mesaj Önizlemesi
-              </span>
-              <div className="mt-1 text-xs text-slate-700 dark:text-zinc-300 whitespace-pre-wrap font-sans bg-white dark:bg-zinc-800 p-2.5 rounded-lg border border-slate-200 dark:border-zinc-700">
-                {previewMessage}
-              </div>
-            </div>
-
-            {/* Data Path */}
-            <div className="bg-slate-50 dark:bg-zinc-750 rounded-xl p-2.5 border border-slate-200 dark:border-zinc-700 space-y-1">
-              <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">
-                Zirve Veri Klasörü
-              </span>
-              <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 p-1.5 rounded border border-slate-200 dark:border-zinc-700 truncate">
-                <HardDrive className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                <span className="truncate">{dataPath}</span>
-              </div>
-            </div>
-
             {/* Footer buttons */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-zinc-700">
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-zinc-800">
               <div>
                 {saveSuccess && (
                   <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1">
@@ -302,7 +303,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-zinc-300 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
+                  className="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-zinc-300 hover:text-slate-800 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
                 >
                   Kapat
                 </button>

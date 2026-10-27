@@ -101,7 +101,7 @@ export const MukellefCard: React.FC<MukellefCardProps> = ({
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border border-transparent dark:border-zinc-700">
         Evrak Yok
       </span>
     );
@@ -110,20 +110,20 @@ export const MukellefCard: React.FC<MukellefCardProps> = ({
   const getCategoryColor = (category: string) => {
     switch (category) {
       case 'BEYANNAME':
-        return 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800';
+        return 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-850';
       case 'TAHAKKUK':
-        return 'bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800';
+        return 'bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-850';
       case 'SGK':
-        return 'bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800';
+        return 'bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-850';
       default:
-        return 'bg-slate-50 dark:bg-slate-750 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+        return 'bg-slate-50 dark:bg-zinc-850 text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-750';
     }
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden transition-all duration-150 hover:border-slate-300 dark:hover:border-slate-600">
-      {/* Header - Compact */}
-      <div className="px-3.5 py-2.5 bg-slate-50/60 dark:bg-slate-850/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-all duration-150 hover:border-slate-300 dark:hover:border-zinc-700">
+      {/* Header - Compact Dark Gray */}
+      <div className="px-3.5 py-2.5 bg-slate-50/70 dark:bg-zinc-850 border-b border-slate-100 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         {/* Left: Checkbox & Company details */}
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
           <input
@@ -133,30 +133,30 @@ export const MukellefCard: React.FC<MukellefCardProps> = ({
               if (input) input.indeterminate = isPartiallySelected;
             }}
             onChange={handleMasterCheckbox}
-            className="h-3.5 w-3.5 rounded border-slate-300 dark:border-slate-600 dark:bg-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer flex-shrink-0"
+            className="h-3.5 w-3.5 rounded border-slate-300 dark:border-zinc-650 bg-white dark:bg-zinc-800 text-blue-600 focus:ring-blue-500 cursor-pointer flex-shrink-0"
           />
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <h3 
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate tracking-tight cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                className="text-xs sm:text-sm font-bold text-slate-900 dark:text-zinc-100 truncate tracking-tight cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                 title={mukellef.name}
               >
                 {mukellef.name}
               </h3>
-              <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 bg-slate-200/60 dark:bg-slate-700 px-1.5 py-0.2 rounded">
+              <span className="text-[10px] font-mono text-slate-500 dark:text-zinc-400 bg-slate-200/60 dark:bg-zinc-800 px-1.5 py-0.2 rounded border border-transparent dark:border-zinc-750">
                 {mukellef.code}
               </span>
               {getStatusBadge()}
             </div>
 
             {/* Sub-info: Phone, Contact, Tax ID */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-600 dark:text-zinc-400 mt-0.5">
               <div className="flex items-center gap-1 font-medium">
                 <Phone className="w-3 h-3 text-slate-400" />
                 {mukellef.phone ? (
-                  <span>{mukellef.displayPhone || mukellef.phone}</span>
+                  <span className="text-slate-700 dark:text-zinc-300">{mukellef.displayPhone || mukellef.phone}</span>
                 ) : (
                   <span className="text-rose-500 font-semibold flex items-center gap-0.5">
                     <AlertTriangle className="w-3 h-3" /> Telefon Yok
@@ -164,7 +164,7 @@ export const MukellefCard: React.FC<MukellefCardProps> = ({
                 )}
                 <button
                   onClick={() => onEditPhone(mukellef)}
-                  className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-0.5 rounded transition-colors"
+                  className="text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 p-0.5 rounded transition-colors"
                   title="Telefon ve Yetkiliyi Düzenle"
                 >
                   <Edit2 className="w-2.5 h-2.5" />
@@ -185,17 +185,17 @@ export const MukellefCard: React.FC<MukellefCardProps> = ({
 
               {mukellef.contactPerson && (
                 <div className="hidden md:inline">
-                  <span className="text-slate-400">Yetkili:</span> {mukellef.contactPerson}
+                  <span className="text-slate-400 dark:text-zinc-500">Yetkili:</span> {mukellef.contactPerson}
                 </div>
               )}
 
               {mukellef.taxNumber && (
                 <div className="hidden lg:inline">
-                  <span className="text-slate-400">VKN:</span> {mukellef.taxNumber}
+                  <span className="text-slate-400 dark:text-zinc-500">VKN:</span> {mukellef.taxNumber}
                 </div>
               )}
 
-              <div className="text-slate-400">
+              <div className="text-slate-400 dark:text-zinc-500">
                 • {mukellef.totalDocs} Evrak
               </div>
             </div>
@@ -210,7 +210,7 @@ export const MukellefCard: React.FC<MukellefCardProps> = ({
               disabled={isSending || !mukellef.phone}
               className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-white transition-all shadow-sm ${
                 !mukellef.phone
-                  ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed'
+                  ? 'bg-slate-300 dark:bg-zinc-800 text-slate-500 dark:text-zinc-500 cursor-not-allowed'
                   : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200 dark:shadow-none'
               }`}
             >
@@ -221,7 +221,7 @@ export const MukellefCard: React.FC<MukellefCardProps> = ({
 
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded hover:bg-slate-200/60 dark:hover:bg-slate-700 transition-colors"
+            className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 rounded hover:bg-slate-200/60 dark:hover:bg-zinc-750 transition-colors"
             title={isExpanded ? 'Daralt' : 'Genişlet'}
           >
             {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -229,12 +229,12 @@ export const MukellefCard: React.FC<MukellefCardProps> = ({
         </div>
       </div>
 
-      {/* Documents List - Compact */}
+      {/* Documents List - Compact Dark Gray */}
       {isExpanded && (
-        <div className="px-3.5 py-2.5 border-t border-slate-100 dark:border-slate-700/80 bg-white dark:bg-slate-800 divide-y divide-slate-100 dark:divide-slate-700/60">
+        <div className="px-3.5 py-2.5 bg-white dark:bg-zinc-900 divide-y divide-slate-100 dark:divide-zinc-800">
           {mukellef.documents.length === 0 ? (
-            <div className="text-center py-4 text-xs text-slate-400">
-              Sistemde Bu dönem için henüz evrak bulunmuyor.
+            <div className="text-center py-4 text-xs text-slate-400 dark:text-zinc-500">
+              Bu dönem için henüz taranmış evrak bulunmuyor.
             </div>
           ) : (
             Array.from(docsByCategory.entries()).map(([category, docs]) => (
@@ -244,7 +244,7 @@ export const MukellefCard: React.FC<MukellefCardProps> = ({
                   <span className={`text-[10px] font-bold tracking-wider uppercase px-1.5 py-0.2 rounded border ${getCategoryColor(category)}`}>
                     {category}
                   </span>
-                  <span className="text-[11px] text-slate-400">({docs.length} Belge)</span>
+                  <span className="text-[11px] text-slate-400 dark:text-zinc-500">({docs.length} Belge)</span>
                 </div>
 
                 {/* Document rows */}
@@ -256,8 +256,8 @@ export const MukellefCard: React.FC<MukellefCardProps> = ({
                         key={doc.id}
                         className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border transition-all text-xs ${
                           isChecked 
-                            ? 'bg-blue-50/40 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' 
-                            : 'bg-slate-50/50 dark:bg-slate-750/50 border-slate-100 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-200 dark:hover:border-slate-650'
+                            ? 'bg-blue-50/40 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900' 
+                            : 'bg-slate-50/50 dark:bg-zinc-850 border-slate-100 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800 hover:border-slate-200 dark:hover:border-zinc-750'
                         }`}
                       >
                         {/* Doc Checkbox & Title */}
@@ -266,14 +266,14 @@ export const MukellefCard: React.FC<MukellefCardProps> = ({
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => onToggleDocSelect(doc.id)}
-                            className="h-3 w-3 rounded border-slate-300 dark:border-slate-600 dark:bg-slate-700 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            className="h-3 w-3 rounded border-slate-300 dark:border-zinc-650 bg-white dark:bg-zinc-800 text-blue-600 focus:ring-blue-500 cursor-pointer"
                           />
                           <FileText className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                           <div className="min-w-0 flex-1 flex items-baseline gap-2">
-                            <span className="font-semibold text-slate-800 dark:text-slate-100 truncate">
+                            <span className="font-semibold text-slate-800 dark:text-zinc-200 truncate">
                               {doc.docType}
                             </span>
-                            <span className="text-[10px] text-slate-400 truncate hidden sm:inline">
+                            <span className="text-[10px] text-slate-400 dark:text-zinc-500 truncate hidden sm:inline">
                               {doc.fileName} • {(doc.size / 1024).toFixed(1)} KB
                             </span>
                           </div>
@@ -296,7 +296,7 @@ export const MukellefCard: React.FC<MukellefCardProps> = ({
                           {/* Preview button */}
                           <button
                             onClick={() => onPreviewDoc(doc)}
-                            className="p-1 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-700 rounded transition-colors"
+                            className="p-1 text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-100 hover:bg-slate-200/60 dark:hover:bg-zinc-750 rounded transition-colors"
                             title="Önizle"
                           >
                             <Eye className="w-3 h-3" />
@@ -308,7 +308,7 @@ export const MukellefCard: React.FC<MukellefCardProps> = ({
                             disabled={isSending || !mukellef.phone}
                             className={`p-1 rounded transition-colors ${
                               !mukellef.phone
-                                ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                                ? 'text-slate-300 dark:text-zinc-650 cursor-not-allowed'
                                 : 'text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/50'
                             }`}
                             title="Bu Belgeyi WhatsApp ile Gönder"

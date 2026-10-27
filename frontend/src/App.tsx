@@ -171,8 +171,8 @@ export const App: React.FC = () => {
   const isConnected = waStatus?.status === 'CONNECTED';
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-zinc-900 flex flex-col font-sans text-slate-800 dark:text-zinc-100 transition-colors">
-      {/* Navbar without WhatsApp button & without theme toggle */}
+    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col font-sans text-slate-800 dark:text-zinc-100 transition-colors">
+      {/* Navbar */}
       <Navbar
         periods={data?.periods || []}
         selectedPeriod={selectedPeriod}
@@ -187,7 +187,7 @@ export const App: React.FC = () => {
         isLoading={isLoading}
       />
 
-      {/* Main Container - Dense spacing */}
+      {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex-1 w-full space-y-3.5">
         {/* Top Dashboard Metrics */}
         {data && (
@@ -198,7 +198,7 @@ export const App: React.FC = () => {
         )}
 
         {/* Toolbar & Filters */}
-        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-2.5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-2.5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-2.5">
           {/* Status Filter Tabs & Expand All */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
             <button
@@ -206,7 +206,7 @@ export const App: React.FC = () => {
               className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                 statusFilter === 'ALL'
                   ? 'bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-700'
+                  : 'text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800'
               }`}
             >
               Tümü ({data?.totalMukellefs || 0})
@@ -235,10 +235,10 @@ export const App: React.FC = () => {
             </button>
 
             {/* Expand / Collapse All Button */}
-            <div className="h-4 w-[1px] bg-slate-200 dark:bg-zinc-700 mx-1 hidden sm:block" />
+            <div className="h-4 w-[1px] bg-slate-200 dark:bg-zinc-800 mx-1 hidden sm:block" />
             <button
               onClick={() => setIsAllExpanded(!isAllExpanded)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 transition-colors whitespace-nowrap"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 border border-slate-200 dark:border-zinc-800 transition-colors whitespace-nowrap"
               title={isAllExpanded ? 'Tüm listeleri daralt' : 'Tüm listeleri genişlet'}
             >
               {isAllExpanded ? (
@@ -265,7 +265,7 @@ export const App: React.FC = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Mükellef ara (ünvan, kod)..."
-                className="w-full text-xs pl-8 pr-2.5 py-1.5 border border-slate-200 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 focus:bg-white dark:focus:bg-zinc-800"
+                className="w-full text-xs pl-8 pr-2.5 py-1.5 border border-slate-200 dark:border-zinc-750 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 dark:bg-zinc-850 text-slate-800 dark:text-zinc-100 focus:bg-white dark:focus:bg-zinc-800"
               />
             </div>
 
@@ -285,7 +285,7 @@ export const App: React.FC = () => {
 
         {/* Selected Items Floating Action Bar */}
         {selectedDocIds.length > 0 && (
-          <div className="bg-slate-900 dark:bg-zinc-800 text-white px-3.5 py-2.5 rounded-xl shadow-lg border border-slate-750 dark:border-zinc-700 flex items-center justify-between animate-in slide-in-from-top duration-200">
+          <div className="bg-slate-900 dark:bg-zinc-900 text-white px-3.5 py-2.5 rounded-xl shadow-lg border border-slate-750 dark:border-zinc-800 flex items-center justify-between animate-in slide-in-from-top duration-200">
             <div className="flex items-center gap-2.5">
               <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
               <span className="text-xs font-medium">
@@ -296,7 +296,7 @@ export const App: React.FC = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={handleClearSelection}
-                className="text-xs text-slate-300 hover:text-white px-2 py-1 rounded hover:bg-slate-800 dark:hover:bg-zinc-700 transition-colors"
+                className="text-xs text-slate-300 hover:text-white px-2 py-1 rounded hover:bg-slate-800 dark:hover:bg-zinc-800 transition-colors"
               >
                 Temizle
               </button>
@@ -311,16 +311,16 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* Mükellef Cards List - Dense */}
+        {/* Mükellef Cards List */}
         <div className="space-y-2.5">
           {isLoading && !data ? (
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center space-y-2">
+            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-8 text-center space-y-2">
               <RotateCw className="w-6 h-6 text-blue-600 animate-spin mx-auto" />
               <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium">Zirve evrakları taranıyor...</p>
             </div>
           ) : !data || data.mukellefler.length === 0 ? (
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center space-y-1.5">
-              <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-700 text-slate-400 flex items-center justify-center mx-auto">
+            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-8 text-center space-y-1.5">
+              <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-400 flex items-center justify-center mx-auto">
                 <Search className="w-4 h-4" />
               </div>
               <h4 className="text-xs font-bold text-slate-700 dark:text-zinc-300">Mükellef veya Evrak Bulunamadı</h4>
@@ -350,7 +350,7 @@ export const App: React.FC = () => {
       </main>
 
       {/* Footer with Developer Credit & Color-coded WhatsApp status */}
-      <footer className="border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 py-3 mt-auto text-xs text-slate-500 dark:text-zinc-400 transition-colors">
+      <footer className="border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-3 mt-auto text-xs text-slate-500 dark:text-zinc-400 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span>Evrak İletim Paneli</span>

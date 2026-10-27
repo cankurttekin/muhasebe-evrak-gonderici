@@ -8,8 +8,7 @@ import {
   Phone, 
   CheckCircle2, 
   Search,
-  BookOpen,
-  Layers
+  BookOpen
 } from 'lucide-react';
 
 interface HelpModalProps {
@@ -147,15 +146,6 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                   </p>
                 </div>
 
-                <div className="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-750 space-y-1">
-                  <div className="font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-1.5">
-                    <Layers className="w-4 h-4 text-amber-500" />
-                    <span>Koyu Gri Tema Desteği</span>
-                  </div>
-                  <p className="text-slate-600 dark:text-zinc-400">
-                    Göz yormayan koyu gri tema, aydınlık tema veya işletim sisteminize uyumlu otomatik tema.
-                  </p>
-                </div>
               </div>
             </div>
           )}
@@ -191,9 +181,11 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
             <div className="space-y-3">
               <h4 className="font-bold text-sm text-slate-900 dark:text-zinc-100">WhatsApp Bağlantısı Nasıl Kurulur?</h4>
               
+              {/*
               <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-300 font-medium">
                 Özel bir WhatsApp Business hesabı veya ücretli Meta API hesabı gerekmez. Herhangi bir kişisel veya ofis WhatsApp telefonunu bağlayabilirsiniz.
               </div>
+              */}
 
               <ol className="list-decimal pl-5 space-y-1.5 text-slate-700 dark:text-zinc-300">
                 <li>Sağ üstteki <strong>Ayarlar</strong> (çark simgesi) butonuna tıklayın.</li>
