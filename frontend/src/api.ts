@@ -20,10 +20,12 @@ export interface Mukellef {
   name: string;
   phone: string;
   displayPhone: string;
+  email?: string;
   contactPerson?: string;
   taxNumber?: string;
   folderPath: string;
   isPhoneOverridden: boolean;
+  isEmailOverridden?: boolean;
   notes?: string;
   documents: ZirveDoc[];
   totalDocs: number;
@@ -55,12 +57,24 @@ export interface SendLogItem {
   period: string;
   category: string;
   phone: string;
+  channel?: 'WHATSAPP' | 'EMAIL' | 'BOTH';
+  email?: string;
   recipient_name: string;
   status: 'SENT' | 'FAILED' | 'PENDING';
   error_message?: string;
   wa_message_id?: string;
   batch_id?: string;
   sent_at: string;
+}
+
+export interface SmtpConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
+  fromName: string;
+  fromEmail: string;
 }
 
 export interface WhatsAppStatus {
@@ -81,7 +95,7 @@ export const api = {
     return res.json();
   },
 
-  async updateMukellef(code: string, data: { customName?: string; customPhone?: string; notes?: string }) {
+  async updateMukellef(code: string, data: { customName?: string; customPhone?: string; customEmail?: string; notes?: string }) {
     const res = await fetch(`/api/mukellefler/${code}/override`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -93,7 +107,9 @@ export const api = {
   async sendBatch(data: {
     mukellefCode: string;
     documentIds: string[];
+    channel?: 'WHATSAPP' | 'EMAIL' | 'BOTH';
     customPhone?: string;
+    customEmail?: string;
     customMessage?: string;
   }) {
     const res = await fetch('/api/send/batch', {
@@ -107,6 +123,7 @@ export const api = {
   async sendBulk(data: {
     period: string;
     mukellefCodes?: string[];
+    channel?: 'WHATSAPP' | 'EMAIL' | 'BOTH';
     onlyPending?: boolean;
     customMessage?: string;
   }) {
@@ -140,16 +157,33 @@ export const api = {
     return res.json();
   },
 
-  async getSettings(): Promise<{ success: boolean; settings: { messageTemplate: string; zirveDataPath: string } }> {
+  async getSettings(): Promise<{
+    success: boolean;
+    settings: {
+      messageTemplate: string;
+      zirveDataPath: string;
+      smtp: SmtpConfig;
+      isSmtpConfigured: boolean;
+    };
+  }> {
     const res = await fetch('/api/settings');
     return res.json();
   },
 
-  async saveSettings(data: { messageTemplate: string }) {
+  async saveSettings(data: { messageTemplate?: string; smtp?: Partial<SmtpConfig> }) {
     const res = await fetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async testSmtp(smtpConfig: SmtpConfig): Promise<{ success: boolean; message: string }> {
+    const res = await fetch('/api/email/test-smtp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ smtpConfig })
     });
     return res.json();
   },

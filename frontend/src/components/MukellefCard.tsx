@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Phone, 
+  Mail,
   Edit2, 
   ExternalLink, 
   Send, 
@@ -151,7 +152,7 @@ export const MukellefCard: React.FC<MukellefCardProps> = ({
               {getStatusBadge()}
             </div>
 
-            {/* Sub-info: Phone, Contact, Tax ID */}
+            {/* Sub-info: Phone, Email, Contact, Tax ID */}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-slate-600 dark:text-zinc-400 mt-0.5">
               <div className="flex items-center gap-1 font-medium">
                 <Phone className="w-3 h-3 text-slate-400" />
@@ -165,7 +166,7 @@ export const MukellefCard: React.FC<MukellefCardProps> = ({
                 <button
                   onClick={() => onEditPhone(mukellef)}
                   className="text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 p-0.5 rounded transition-colors"
-                  title="Telefon ve Yetkiliyi Düzenle"
+                  title="İletişim Bilgilerini Düzenle"
                 >
                   <Edit2 className="w-2.5 h-2.5" />
                 </button>
@@ -180,6 +181,17 @@ export const MukellefCard: React.FC<MukellefCardProps> = ({
                   >
                     <ExternalLink className="w-2.5 h-2.5" />
                   </a>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1 font-medium">
+                <Mail className="w-3 h-3 text-slate-400" />
+                {mukellef.email ? (
+                  <span className="text-slate-700 dark:text-zinc-300 truncate max-w-[160px]" title={mukellef.email}>
+                    {mukellef.email}
+                  </span>
+                ) : (
+                  <span className="text-slate-400 dark:text-zinc-500 text-[10px]">E-posta Yok</span>
                 )}
               </div>
 
@@ -207,9 +219,9 @@ export const MukellefCard: React.FC<MukellefCardProps> = ({
           {pendingDocIds.length > 0 && (
             <button
               onClick={() => onSendBatchMukellef(mukellef, pendingDocIds)}
-              disabled={isSending || !mukellef.phone}
+              disabled={isSending || (!mukellef.phone && !mukellef.email)}
               className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-white transition-all shadow-sm ${
-                !mukellef.phone
+                !mukellef.phone && !mukellef.email
                   ? 'bg-slate-300 dark:bg-zinc-800 text-slate-500 dark:text-zinc-500 cursor-not-allowed'
                   : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200 dark:shadow-none'
               }`}
@@ -305,13 +317,13 @@ export const MukellefCard: React.FC<MukellefCardProps> = ({
                           {/* Send single doc */}
                           <button
                             onClick={() => onSendSingleDoc(mukellef, doc)}
-                            disabled={isSending || !mukellef.phone}
+                            disabled={isSending || (!mukellef.phone && !mukellef.email)}
                             className={`p-1 rounded transition-colors ${
-                              !mukellef.phone
+                              !mukellef.phone && !mukellef.email
                                 ? 'text-slate-300 dark:text-zinc-650 cursor-not-allowed'
                                 : 'text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/50'
                             }`}
-                            title="Bu Belgeyi WhatsApp ile Gönder"
+                            title="Bu Belgeyi Gönder (WhatsApp / E-posta)"
                           >
                             <Send className="w-3 h-3" />
                           </button>

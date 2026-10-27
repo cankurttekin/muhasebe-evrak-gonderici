@@ -6,15 +6,17 @@ import {
   HardDrive, 
   MessageSquare, 
   Smartphone, 
+  Mail,
   CheckCircle2, 
   RotateCw, 
   LogOut,
   Sun,
   Moon,
   Monitor,
-  AlertCircle
+  AlertCircle,
+  Send
 } from 'lucide-react';
-import { WhatsAppStatus, api } from '../api';
+import { WhatsAppStatus, SmtpConfig, api } from '../api';
 import { ThemeMode } from '../useTheme';
 
 interface SettingsModalProps {
@@ -36,6 +38,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [template, setTemplate] = useState('');
   const [dataPath, setDataPath] = useState('');
+  const [smtp, setSmtp] = useState<SmtpConfig>({
+    host: '',
+    port: 587,
+    secure: false,
+    user: '',
+    pass: '',
+    fromName: 'Muhasebe Evrak İletim',
+    fromEmail: ''
+  });
+  const [isTestingSmtp, setIsTestingSmtp] = useState(false);
+  const [smtpTestResult, setSmtpTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isWaActionLoading, setIsWaActionLoading] = useState(false);
@@ -44,8 +57,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (isOpen) {
       api.getSettings().then((res) => {
         if (res.success) {
-          setTemplate(res.settings.messageTemplate);
-          setDataPath(res.settings.zirveDataPath);
+          setTemplate(res.settings.messageTemplate || '');
+          setDataPath(res.settings.zirveDataPath || '');
+          if (res.settings.smtp) {
+            setSmtp(res.settings.smtp);
+          }
         }
       });
     }
@@ -66,11 +82,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setIsSaving(true);
     setSaveSuccess(false);
     try {
-      await api.saveSettings({ messageTemplate: template });
+      await api.saveSettings({ messageTemplate: template, smtp });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleTestSmtp = async () => {
+    setIsTestingSmtp(true);
+    setSmtpTestResult(null);
+    try {
+      const res = await api.testSmtp(smtp);
+      setSmtpTestResult(res);
+    } catch (err: any) {
+      setSmtpTestResult({ success: false, message: err.message || 'Bağlantı testi sırasında hata oluştu' });
+    } finally {
+      setIsTestingSmtp(false);
     }
   };
 
@@ -103,16 +132,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col text-slate-800 dark:text-zinc-100">
-        {/* Header - Fixed dark background */}
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col text-slate-800 dark:text-zinc-100">
+        {/* Header - Dark Gray */}
         <div className="px-6 py-4 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between bg-slate-50 dark:bg-zinc-850">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center">
               <Settings className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 dark:text-zinc-100 text-sm">Ayarlar ve WhatsApp</h3>
-              <p className="text-xs text-slate-500 dark:text-zinc-400">Bağlantı durumu, mesaj şablonu ve tema</p>
+              <h3 className="font-bold text-slate-900 dark:text-zinc-100 text-sm">Ayarlar ve İletişim Kanalları</h3>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">WhatsApp, E-posta (SMTP), mesaj şablonu ve tema</p>
             </div>
           </div>
           <button
@@ -125,7 +154,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Content */}
         <div className="p-6 overflow-y-auto space-y-5 bg-white dark:bg-zinc-900">
-          {/* SECTION WhatsApp Bağlantısı & Durumu - Fixed dark background */}
+          {/* SECTION WhatsApp Bağlantısı & Durumu */}
           <div className="bg-slate-50 dark:bg-zinc-850 p-4 rounded-xl border border-slate-200 dark:border-zinc-750 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
@@ -171,7 +200,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     className="w-48 h-48 mx-auto rounded-lg"
                   />
                 </div>
-                <div className="text-left text-[11px] text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-900 p-3 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-1">
+                <div className="text-left text-[11px] text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-900 p-3 rounded-lg border border-slate-200 dark:border-zinc-750 space-y-1">
                   <div className="font-semibold text-slate-800 dark:text-zinc-200">Telefonunuzdan Bağlanın:</div>
                   <ol className="list-decimal pl-4 space-y-0.5">
                     <li>Telefonunuzda WhatsApp'ı açın (Normal veya Business).</li>
@@ -203,13 +232,154 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             )}
           </div>
 
+          {/* SECTION E-posta (SMTP) Ayarları */}
+          <div className="bg-slate-50 dark:bg-zinc-850 p-4 rounded-xl border border-slate-200 dark:border-zinc-750 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
+                <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span>E-posta (SMTP) Sunucu Ayarları</span>
+              </span>
+              <button
+                type="button"
+                onClick={handleTestSmtp}
+                disabled={isTestingSmtp || !smtp.host || !smtp.user || !smtp.pass}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isTestingSmtp ? (
+                  <>
+                    <RotateCw className="w-3 h-3 animate-spin" />
+                    <span>Test Ediliyor...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3 h-3" />
+                    <span>Bağlantıyı Test Et</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {smtpTestResult && (
+              <div
+                className={`p-2.5 rounded-lg border text-xs flex items-center gap-2 ${
+                  smtpTestResult.success
+                    ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+                    : 'bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300'
+                }`}
+              >
+                {smtpTestResult.success ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+                )}
+                <span>{smtpTestResult.message}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-2">
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                  SMTP Sunucu Adresi (Host)
+                </label>
+                <input
+                  type="text"
+                  value={smtp.host}
+                  onChange={(e) => setSmtp({ ...smtp, host: e.target.value })}
+                  placeholder="örn: mail.sirketiniz.com veya smtp.gmail.com"
+                  className="w-full text-xs border border-slate-300 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                  Port
+                </label>
+                <input
+                  type="number"
+                  value={smtp.port}
+                  onChange={(e) => setSmtp({ ...smtp, port: parseInt(e.target.value, 10) || 587 })}
+                  placeholder="587 veya 465"
+                  className="w-full text-xs border border-slate-300 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                  Kullanıcı Adı / E-posta
+                </label>
+                <input
+                  type="text"
+                  value={smtp.user}
+                  onChange={(e) => setSmtp({ ...smtp, user: e.target.value })}
+                  placeholder="muhasebe@sirketiniz.com"
+                  className="w-full text-xs border border-slate-300 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                  Şifre / Uygulama Şifresi
+                </label>
+                <input
+                  type="password"
+                  value={smtp.pass}
+                  onChange={(e) => setSmtp({ ...smtp, pass: e.target.value })}
+                  placeholder="••••••••"
+                  className="w-full text-xs border border-slate-300 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                  Gönderici Adı (Görünen İsim)
+                </label>
+                <input
+                  type="text"
+                  value={smtp.fromName}
+                  onChange={(e) => setSmtp({ ...smtp, fromName: e.target.value })}
+                  placeholder="Kaya Mali Müşavirlik"
+                  className="w-full text-xs border border-slate-300 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+                  Gönderici E-posta (From)
+                </label>
+                <input
+                  type="email"
+                  value={smtp.fromEmail}
+                  onChange={(e) => setSmtp({ ...smtp, fromEmail: e.target.value })}
+                  placeholder="muhasebe@sirketiniz.com"
+                  className="w-full text-xs border border-slate-300 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="smtp-secure"
+                checked={smtp.secure}
+                onChange={(e) => setSmtp({ ...smtp, secure: e.target.checked })}
+                className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="smtp-secure" className="text-xs text-slate-600 dark:text-zinc-300 cursor-pointer">
+                SSL / TLS Güvenli Bağlantı (Port 465 için işaretleyin, 587/STARTTLS için işaretsiz bırakın)
+              </label>
+            </div>
+          </div>
 
           {/* SECTION Mesaj Şablonu */}
           <form onSubmit={handleSave} className="space-y-4">
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
                 <MessageSquare className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                <span>Varsayılan WhatsApp Mesaj Şablonu</span>
+                <span>Varsayılan Mesaj Şablonu (WhatsApp ve E-posta)</span>
               </label>
               <p className="text-[11px] text-slate-500 dark:text-zinc-400">
                 Kullanılabilir etiketler: <code className="bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono text-blue-600 dark:text-blue-400">{'{UNVAN}'}</code>, <code className="bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono text-blue-600 dark:text-blue-400">{'{DONEM}'}</code>, <code className="bg-slate-100 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono text-blue-600 dark:text-blue-400">{'{BELGELER}'}</code>
@@ -223,7 +393,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               />
             </div>
 
-            {/* Live Preview - Fixed dark background */}
+            {/* Live Preview */}
             <div className="bg-slate-50 dark:bg-zinc-850 rounded-xl p-3 border border-slate-200 dark:border-zinc-750 space-y-1">
               <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-zinc-400 tracking-wider">
                 Mesaj Önizlemesi
@@ -233,7 +403,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </div>
 
-            {/* Data Path - Fixed dark background */}
+            {/* Data Path */}
             <div className="bg-slate-50 dark:bg-zinc-850 rounded-xl p-2.5 border border-slate-200 dark:border-zinc-750 space-y-1">
               <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-zinc-400 tracking-wider">
                 Zirve Veri Klasörü
@@ -244,57 +414,57 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </div>
 
-          {/* SECTION Görünüm Teması */}
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-slate-800 dark:text-zinc-200">
-              Görünüm Teması
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => onThemeChange('system')}
-                className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
-                  currentTheme === 'system'
-                    ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 ring-2 ring-blue-500/20'
-                    : 'border-slate-200 dark:border-zinc-750 bg-slate-50 dark:bg-zinc-850 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300'
-                }`}
-              >
-                <Monitor className="w-4 h-4 text-blue-500" />
-                <span>Otomatik (Sistem)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onThemeChange('light')}
-                className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
-                  currentTheme === 'light'
-                    ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 ring-2 ring-blue-500/20'
-                    : 'border-slate-200 dark:border-zinc-750 bg-slate-50 dark:bg-zinc-850 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300'
-                }`}
-              >
-                <Sun className="w-4 h-4 text-amber-500" />
-                <span>Açık Tema</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onThemeChange('dark')}
-                className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
-                  currentTheme === 'dark'
-                    ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 ring-2 ring-blue-500/20'
-                    : 'border-slate-200 dark:border-zinc-750 bg-slate-50 dark:bg-zinc-850 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300'
-                }`}
-              >
-                <Moon className="w-4 h-4 text-indigo-400" />
-                <span>Koyu Tema</span>
-              </button>
+            {/* SECTION Görünüm Teması */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-800 dark:text-zinc-200">
+                Görünüm
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => onThemeChange('system')}
+                  className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                    currentTheme === 'system'
+                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 ring-2 ring-blue-500/20'
+                      : 'border-slate-200 dark:border-zinc-750 bg-slate-50 dark:bg-zinc-850 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300'
+                  }`}
+                >
+                  <Monitor className="w-4 h-4 text-blue-500" />
+                  <span>Otomatik (Sistem)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onThemeChange('light')}
+                  className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                    currentTheme === 'light'
+                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 ring-2 ring-blue-500/20'
+                      : 'border-slate-200 dark:border-zinc-750 bg-slate-50 dark:bg-zinc-850 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300'
+                  }`}
+                >
+                  <Sun className="w-4 h-4 text-amber-500" />
+                  <span>Açık Tema</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onThemeChange('dark')}
+                  className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                    currentTheme === 'dark'
+                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 ring-2 ring-blue-500/20'
+                      : 'border-slate-200 dark:border-zinc-750 bg-slate-50 dark:bg-zinc-850 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300'
+                  }`}
+                >
+                  <Moon className="w-4 h-4 text-indigo-400" />
+                  <span>Koyu Tema</span>
+                </button>
+              </div>
             </div>
-          </div>
 
             {/* Footer buttons */}
             <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-zinc-800">
               <div>
                 {saveSuccess && (
                   <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1">
-                    <Check className="w-3.5 h-3.5" /> Şablon Kaydedildi!
+                    <Check className="w-3.5 h-3.5" /> Ayarlar Başarıyla Kaydedildi!
                   </span>
                 )}
               </div>
@@ -313,7 +483,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm shadow-blue-200 dark:shadow-none transition-colors"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  <span>{isSaving ? 'Kaydediliyor...' : 'Şablonu Kaydet'}</span>
+                  <span>{isSaving ? 'Kaydediliyor...' : 'Tüm Ayarları Kaydet'}</span>
                 </button>
               </div>
             </div>

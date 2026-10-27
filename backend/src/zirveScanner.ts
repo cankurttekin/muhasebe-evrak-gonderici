@@ -23,10 +23,12 @@ export interface MukellefInfo {
   name: string; // e.g. KAYALAR TEKSTİL LTD. ŞTİ.
   phone: string; // cleaned phone e.g. 905321234567
   displayPhone: string; // 0 (532) 123 45 67
+  email: string;
   contactPerson?: string;
   taxNumber?: string;
   folderPath: string;
   isPhoneOverridden: boolean;
+  isEmailOverridden: boolean;
   notes?: string;
   documents: ZirveDocument[];
   // Stats for the active filter/period
@@ -95,6 +97,7 @@ export function normalizePhone(rawPhone: string): { raw: string; cleaned: string
 export async function parseSirketBilgileri(companyFolderPath: string): Promise<{
   name?: string;
   phone?: string;
+  email?: string;
   contactPerson?: string;
   taxNumber?: string;
 }> {
@@ -123,7 +126,7 @@ export async function parseSirketBilgileri(companyFolderPath: string): Promise<{
   try {
     const content = await fs.promises.readFile(filePath, 'utf-8');
     const lines = content.split(/\r?\n/);
-    const result: { name?: string; phone?: string; contactPerson?: string; taxNumber?: string } = {};
+    const result: { name?: string; phone?: string; email?: string; contactPerson?: string; taxNumber?: string } = {};
 
     for (const line of lines) {
       const trimmed = line.trim();
@@ -153,6 +156,20 @@ export async function parseSirketBilgileri(companyFolderPath: string): Promise<{
         key === 'tel1'
       ) {
         if (!result.phone) result.phone = val;
+      }
+      // Match email
+      else if (
+        key === 'email' ||
+        key === 'e-mail' ||
+        key === 'mail' ||
+        key === 'eposta' ||
+        key === 'e_posta' ||
+        key === 'yetkiliemail' ||
+        key === 'yetkili_email' ||
+        key === 'sirketmail' ||
+        key === 'sirket_mail'
+      ) {
+        if (!result.email) result.email = val;
       }
       // Match company name
       else if (
@@ -277,6 +294,7 @@ export async function scanZirveData(targetPeriod?: string): Promise<ScannerSumma
     const finalName = override?.custom_name || companyInfo.name || companyCode;
     const rawPhone = override?.custom_phone || companyInfo.phone || '';
     const phoneNorm = normalizePhone(rawPhone);
+    const finalEmail = override?.custom_email || companyInfo.email || '';
 
     // Look for DOKUMANLAR folder (case-insensitive check)
     let dokumanlarPath = '';
@@ -385,10 +403,12 @@ export async function scanZirveData(targetPeriod?: string): Promise<ScannerSumma
       name: finalName,
       phone: phoneNorm.cleaned,
       displayPhone: phoneNorm.display,
+      email: finalEmail,
       contactPerson: companyInfo.contactPerson,
       taxNumber: companyInfo.taxNumber,
       folderPath: companyFolderPath,
       isPhoneOverridden: !!override?.custom_phone,
+      isEmailOverridden: !!override?.custom_email,
       notes: override?.notes,
       documents: filteredDocs,
       totalDocs,

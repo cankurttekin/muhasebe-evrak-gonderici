@@ -3,8 +3,9 @@ import fs from 'fs';
 import path from 'path';
 import { CONFIG } from '../config.js';
 import { dbService } from '../db.js';
-import { scanZirveData, normalizePhone } from '../zirveScanner.js';
+import { scanZirveData } from '../zirveScanner.js';
 import { whatsappService } from '../whatsappService.js';
+import { emailService } from '../emailService.js';
 
 export const apiRouter = Router();
 
@@ -89,16 +90,17 @@ apiRouter.get('/mukellefler/:code', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/mukellefler/:code/override - Update client phone, name, notes
+// POST /api/mukellefler/:code/override - Update client phone, name, email, notes
 apiRouter.post('/mukellefler/:code/override', (req: Request, res: Response) => {
   try {
     const code = String(req.params.code);
-    const { customName, customPhone, notes } = req.body;
+    const { customName, customPhone, customEmail, notes } = req.body;
 
     dbService.saveOverride({
       mukellef_code: code,
       custom_name: customName,
       custom_phone: customPhone,
+      custom_email: customEmail,
       notes
     });
 
@@ -137,7 +139,14 @@ apiRouter.get('/documents/preview/:id', (req: Request, res: Response) => {
 // POST /api/send/batch - Send selected documents of a mükellef
 apiRouter.post('/send/batch', async (req: Request, res: Response) => {
   try {
-    const { mukellefCode, documentIds, customPhone, customMessage } = req.body;
+    const { 
+      mukellefCode, 
+      documentIds, 
+      channel = 'WHATSAPP', 
+      customPhone, 
+      customEmail, 
+      customMessage 
+    } = req.body;
 
     if (!mukellefCode || !Array.isArray(documentIds) || documentIds.length === 0) {
       return res.status(400).json({ success: false, error: 'Mükellef ve belge seçimi zorunludur' });
@@ -149,9 +158,17 @@ apiRouter.post('/send/batch', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, error: 'Mükellef bulunamadı' });
     }
 
+    const wantsWa = channel === 'WHATSAPP' || channel === 'BOTH';
+    const wantsEmail = channel === 'EMAIL' || channel === 'BOTH';
+
     const targetPhone = customPhone || mukellef.phone;
-    if (!targetPhone) {
-      return res.status(400).json({ success: false, error: 'Mükellef telefon numarası bulunamadı' });
+    const targetEmail = customEmail || mukellef.email;
+
+    if (wantsWa && !targetPhone) {
+      return res.status(400).json({ success: false, error: 'WhatsApp ile gönderim için telefon numarası bulunamadı' });
+    }
+    if (wantsEmail && !targetEmail) {
+      return res.status(400).json({ success: false, error: 'E-posta ile gönderim için e-posta adresi bulunamadı' });
     }
 
     // Find requested documents
@@ -170,19 +187,44 @@ apiRouter.post('/send/batch', async (req: Request, res: Response) => {
       .replace(/{DONEM}/g, period)
       .replace(/{BELGELER}/g, docNames);
 
-    const result = await whatsappService.sendDocumentsToMukellef({
-      mukellefCode,
-      mukellefName: mukellef.name,
-      phone: targetPhone,
-      documents: requestedDocs,
-      customMessage: formattedMessage
-    });
+    let totalSent = 0;
+    let totalFailed = 0;
+    const results: Array<{ documentName: string; success: boolean; channel: string; error?: string }> = [];
+
+    // 1. Send via WhatsApp if selected
+    if (wantsWa) {
+      const waRes = await whatsappService.sendDocumentsToMukellef({
+        mukellefCode,
+        mukellefName: mukellef.name,
+        phone: targetPhone,
+        documents: requestedDocs,
+        customMessage: formattedMessage
+      });
+      totalSent += waRes.sentCount;
+      totalFailed += waRes.failedCount;
+      results.push(...waRes.results.map(r => ({ ...r, channel: 'WHATSAPP' })));
+    }
+
+    // 2. Send via Email if selected
+    if (wantsEmail) {
+      const emailRes = await emailService.sendDocumentsToMukellef({
+        mukellefCode,
+        mukellefName: mukellef.name,
+        email: targetEmail,
+        documents: requestedDocs,
+        period,
+        customMessage: formattedMessage
+      });
+      totalSent += emailRes.sentCount;
+      totalFailed += emailRes.failedCount;
+      results.push(...emailRes.results.map(r => ({ ...r, channel: 'EMAIL' })));
+    }
 
     res.json({
-      success: result.sentCount > 0,
-      sentCount: result.sentCount,
-      failedCount: result.failedCount,
-      results: result.results
+      success: totalSent > 0,
+      sentCount: totalSent,
+      failedCount: totalFailed,
+      results
     });
   } catch (err: any) {
     console.error('Error in /api/send/batch:', err);
@@ -193,7 +235,13 @@ apiRouter.post('/send/batch', async (req: Request, res: Response) => {
 // POST /api/send/bulk - Bulk send for multiple mükellefs
 apiRouter.post('/send/bulk', async (req: Request, res: Response) => {
   try {
-    const { period, mukellefCodes, onlyPending = true, customMessage } = req.body;
+    const { 
+      period, 
+      mukellefCodes, 
+      channel = 'WHATSAPP', 
+      onlyPending = true, 
+      customMessage 
+    } = req.body;
 
     if (!period) {
       return res.status(400).json({ success: false, error: 'Dönem seçimi zorunludur' });
@@ -210,6 +258,9 @@ apiRouter.post('/send/bulk', async (req: Request, res: Response) => {
       targetMukellefler = targetMukellefler.filter(m => m.pendingDocs > 0);
     }
 
+    const wantsWa = channel === 'WHATSAPP' || channel === 'BOTH';
+    const wantsEmail = channel === 'EMAIL' || channel === 'BOTH';
+
     const template = customMessage || dbService.getSetting('message_template', CONFIG.DEFAULT_MESSAGE_TEMPLATE);
 
     let totalSent = 0;
@@ -217,16 +268,23 @@ apiRouter.post('/send/bulk', async (req: Request, res: Response) => {
     const clientResults: Array<{ mukellef: string; sent: number; failed: number }> = [];
 
     for (const mukellef of targetMukellefler) {
-      if (!mukellef.phone) {
-        clientResults.push({ mukellef: mukellef.name, sent: 0, failed: mukellef.pendingDocs });
-        continue;
-      }
-
       const docsToSend = onlyPending
         ? mukellef.documents.filter(d => !d.isSent)
         : mukellef.documents;
 
       if (docsToSend.length === 0) continue;
+
+      if (wantsWa && !mukellef.phone) {
+        clientResults.push({ mukellef: mukellef.name, sent: 0, failed: docsToSend.length });
+        totalFailed += docsToSend.length;
+        continue;
+      }
+
+      if (wantsEmail && !mukellef.email) {
+        clientResults.push({ mukellef: mukellef.name, sent: 0, failed: docsToSend.length });
+        totalFailed += docsToSend.length;
+        continue;
+      }
 
       const docNames = docsToSend.map(d => `${d.docType} (${d.category})`).join(', ');
       const formattedMessage = template
@@ -234,24 +292,44 @@ apiRouter.post('/send/bulk', async (req: Request, res: Response) => {
         .replace(/{DONEM}/g, period)
         .replace(/{BELGELER}/g, docNames);
 
-      const resBatch = await whatsappService.sendDocumentsToMukellef({
-        mukellefCode: mukellef.code,
-        mukellefName: mukellef.name,
-        phone: mukellef.phone,
-        documents: docsToSend,
-        customMessage: formattedMessage
-      });
+      let clientSent = 0;
+      let clientFailed = 0;
 
-      totalSent += resBatch.sentCount;
-      totalFailed += resBatch.failedCount;
+      if (wantsWa) {
+        const waRes = await whatsappService.sendDocumentsToMukellef({
+          mukellefCode: mukellef.code,
+          mukellefName: mukellef.name,
+          phone: mukellef.phone,
+          documents: docsToSend,
+          customMessage: formattedMessage
+        });
+        clientSent += waRes.sentCount;
+        clientFailed += waRes.failedCount;
+      }
+
+      if (wantsEmail) {
+        const emailRes = await emailService.sendDocumentsToMukellef({
+          mukellefCode: mukellef.code,
+          mukellefName: mukellef.name,
+          email: mukellef.email,
+          documents: docsToSend,
+          period,
+          customMessage: formattedMessage
+        });
+        clientSent += emailRes.sentCount;
+        clientFailed += emailRes.failedCount;
+      }
+
+      totalSent += clientSent;
+      totalFailed += clientFailed;
       clientResults.push({
         mukellef: mukellef.name,
-        sent: resBatch.sentCount,
-        failed: resBatch.failedCount
+        sent: clientSent,
+        failed: clientFailed
       });
 
       // Pause between clients
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise(r => setTimeout(r, 1500));
     }
 
     res.json({
@@ -304,21 +382,37 @@ apiRouter.post('/whatsapp/disconnect', async (req: Request, res: Response) => {
 });
 
 // Settings endpoints
-apiRouter.get('/settings', (req: Request, res: Response) => {
+apiRouter.get('/settings', (_req: Request, res: Response) => {
   const template = dbService.getSetting('message_template', CONFIG.DEFAULT_MESSAGE_TEMPLATE);
   res.json({
     success: true,
     settings: {
       messageTemplate: template,
-      zirveDataPath: CONFIG.ZIRVE_DATA_PATH
+      zirveDataPath: CONFIG.ZIRVE_DATA_PATH,
+      smtp: emailService.getSmtpConfig(),
+      isSmtpConfigured: emailService.isConfigured()
     }
   });
 });
 
 apiRouter.post('/settings', (req: Request, res: Response) => {
-  const { messageTemplate } = req.body;
-  if (messageTemplate) {
+  const { messageTemplate, smtp } = req.body;
+  if (messageTemplate !== undefined) {
     dbService.setSetting('message_template', messageTemplate);
   }
+  if (smtp) {
+    emailService.saveSmtpConfig(smtp);
+  }
   res.json({ success: true, message: 'Ayarlar kaydedildi' });
+});
+
+// Test SMTP connection endpoint
+apiRouter.post('/email/test-smtp', async (req: Request, res: Response) => {
+  try {
+    const { smtpConfig } = req.body;
+    const result = await emailService.testConnection(smtpConfig);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });

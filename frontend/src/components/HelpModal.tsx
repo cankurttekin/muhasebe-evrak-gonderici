@@ -4,6 +4,7 @@ import {
   HelpCircle, 
   FolderTree, 
   Smartphone, 
+  Mail,
   Send, 
   Phone, 
   CheckCircle2, 
@@ -17,7 +18,7 @@ interface HelpModalProps {
 }
 
 export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'start' | 'zirve' | 'whatsapp' | 'sending' | 'phone'>('start');
+  const [activeTab, setActiveTab] = useState<'start' | 'zirve' | 'channels' | 'sending' | 'phone'>('start');
 
   if (!isOpen) return null;
 
@@ -68,15 +69,15 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
             <span>Zirve Veri Yapısı</span>
           </button>
           <button
-            onClick={() => setActiveTab('whatsapp')}
+            onClick={() => setActiveTab('channels')}
             className={`pb-2.5 px-2 font-semibold border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'whatsapp'
+              activeTab === 'channels'
                 ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                 : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300'
             }`}
           >
             <Smartphone className="w-3.5 h-3.5" />
-            <span>WhatsApp Bağlantısı</span>
+            <span>WhatsApp & E-posta (SMTP)</span>
           </button>
           <button
             onClick={() => setActiveTab('sending')}
@@ -98,7 +99,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
             }`}
           >
             <Phone className="w-3.5 h-3.5" />
-            <span>Telefon & Bilgiler</span>
+            <span>Telefon & E-posta Bilgileri</span>
           </button>
         </div>
 
@@ -111,7 +112,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                   Uygulamanın Amacı Nedir?
                 </h4>
                 <p className="text-slate-700 dark:text-zinc-300">
-                  Bu uygulama, muhasebe ofisinizin yerel ağındaki Zirve sunucusunda biriken beyanname, tahakkuk ve SGK evraklarını tarar; ilgili mükellefin WhatsApp numarasına tek tıkla doğrudan PDF olarak iletmenizi ve bu ay kimlere evrak gittiğini/kimlerin beklediğini takip etmenizi sağlar.
+                  Bu uygulama, muhasebe ofisinizin yerel ağındaki Zirve sunucusunda biriken beyanname, tahakkuk ve SGK evraklarını tarar; ilgili mükellefe tek tıkla doğrudan WhatsApp veya E-posta (veya her ikisi) üzerinden PDF olarak iletmenizi ve bu ay kimlere evrak gittiğini/kimlerin beklediğini takip etmenizi sağlar.
                 </p>
               </div>
 
@@ -139,13 +140,22 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                 <div className="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-750 space-y-1">
                   <div className="font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-1.5">
                     <Send className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                    <span>Toplu veya Tekil Gönderim</span>
+                    <span>Çoklu Kanal (WhatsApp & E-posta)</span>
                   </div>
                   <p className="text-slate-600 dark:text-zinc-400">
-                    İster tek bir tahakkuk fişini, ister bir firmanın tüm evraklarını, isterseniz tüm ofisi tek tuşla gönderin.
+                    Evrakları WhatsApp, E-posta veya her iki kanaldan aynı anda mükelleflerinize ulaştırın.
                   </p>
                 </div>
 
+                <div className="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-750 space-y-1">
+                  <div className="font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-1.5">
+                    <Mail className="w-4 h-4 text-indigo-500" />
+                    <span>Ofis SMTP Entegrasyonu</span>
+                  </div>
+                  <p className="text-slate-600 dark:text-zinc-400">
+                    Kendi kurumsal mail adresiniz veya Gmail üzerinden profesyonel HTML formatında gönderim yapın.
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -160,7 +170,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
               <div className="bg-slate-900 dark:bg-zinc-950 text-slate-200 p-3.5 rounded-xl font-mono text-[11px] leading-relaxed overflow-x-auto border border-zinc-700">
                 <div>zirvedata/</div>
                 <div>├── FIRMA_KODU_1/</div>
-                <div>│   ├── SirketBilgileri               (Telefon ve firma bilgileri)</div>
+                <div>│   ├── SirketBilgileri               (Telefon, e-posta ve firma bilgileri)</div>
                 <div>│   └── DOKUMANLAR/</div>
                 <div>│       ├── BEYANNAME/</div>
                 <div>│       │   └── 2026_09_KDV1_BEYAN.pdf</div>
@@ -177,24 +187,36 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {activeTab === 'whatsapp' && (
-            <div className="space-y-3">
-              <h4 className="font-bold text-sm text-slate-900 dark:text-zinc-100">WhatsApp Bağlantısı Nasıl Kurulur?</h4>
-              
-              {/*
-              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-300 font-medium">
-                Özel bir WhatsApp Business hesabı veya ücretli Meta API hesabı gerekmez. Herhangi bir kişisel veya ofis WhatsApp telefonunu bağlayabilirsiniz.
+          {activeTab === 'channels' && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <h4 className="font-bold text-sm text-slate-900 dark:text-zinc-100 flex items-center gap-1.5">
+                  <Smartphone className="w-4 h-4 text-emerald-600" />
+                  <span>1. WhatsApp Bağlantısı</span>
+                </h4>
+                <ol className="list-decimal pl-5 space-y-1 text-slate-700 dark:text-zinc-300">
+                  <li>Sağ üstteki <strong>Ayarlar</strong> (çark simgesi) butonuna tıklayın.</li>
+                  <li><strong>"WhatsApp'a Bağlan (QR Kod)"</strong> butonuna basın.</li>
+                  <li>Telefonunuzda WhatsApp'tan <strong>Bağlı Cihazlar &gt; Cihaz Bağla</strong> ile ekrandaki QR kodu okutun.</li>
+                  <li>Yeşil <em>"Bağlı Aktif"</em> yazısını gördüğünüzde işlem tamamdır.</li>
+                </ol>
               </div>
-              */}
 
-              <ol className="list-decimal pl-5 space-y-1.5 text-slate-700 dark:text-zinc-300">
-                <li>Sağ üstteki <strong>Ayarlar</strong> (çark simgesi) butonuna tıklayın.</li>
-                <li>Açılan pencerede <strong>"WhatsApp'a Bağlan (QR Kod)"</strong> butonuna basın.</li>
-                <li>Telefonunuzda WhatsApp uygulamasını açın.</li>
-                <li><strong>Ayarlar &gt; Bağlı Cihazlar &gt; Cihaz Bağla</strong> seçeneğine dokunun.</li>
-                <li>Telefonun kamerasını ekrandaki QR koda tutun.</li>
-                <li>Ekranda yeşil renkle <em>"Bağlı Aktif"</em> ibaresi göründüğünde sistem evrak göndermeye hazırdır.</li>
-              </ol>
+              <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-zinc-700">
+                <h4 className="font-bold text-sm text-slate-900 dark:text-zinc-100 flex items-center gap-1.5">
+                  <Mail className="w-4 h-4 text-blue-600" />
+                  <span>2. E-posta (SMTP) Kurulumu</span>
+                </h4>
+                <p className="text-slate-600 dark:text-zinc-400">
+                  E-posta gönderebilmek için Ayarlar menüsündeki SMTP alanına ofisinizin e-posta sunucu bilgilerini girin:
+                </p>
+                <ul className="list-disc pl-5 space-y-1 text-slate-700 dark:text-zinc-300">
+                  <li><strong>Host:</strong> Sunucu adresi (örn: <code>mail.sirketiniz.com</code> veya <code>smtp.gmail.com</code>)</li>
+                  <li><strong>Port:</strong> Genellikle <code>587</code> (STARTTLS) veya <code>465</code> (SSL/TLS)</li>
+                  <li><strong>Kullanıcı Adı ve Şifre:</strong> Kurumsal mail hesabınızın şifresi (veya Gmail uygulama şifresi)</li>
+                  <li><strong>Bağlantıyı Test Et:</strong> Bilgileri girdikten sonra butona basarak bağlantıyı anında doğrulayın.</li>
+                </ul>
+              </div>
             </div>
           )}
 
@@ -204,30 +226,30 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
 
               <div className="space-y-2.5">
                 <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-750">
-                  <span className="font-bold text-slate-900 dark:text-zinc-100">1. Tek Bir Evrak Gönderme</span>
+                  <span className="font-bold text-slate-900 dark:text-zinc-100">1. Kanal Seçimi (WhatsApp, E-posta, Her İkisi)</span>
+                  <p className="text-slate-600 dark:text-zinc-400 mt-0.5">
+                    Gönderim penceresinde <strong>[📱 WhatsApp]</strong>, <strong>[✉️ E-posta]</strong> veya <strong>[🚀 Her İkisi]</strong> butonlarından birini seçebilirsiniz.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-750">
+                  <span className="font-bold text-slate-900 dark:text-zinc-100">2. Tek Bir Evrak Gönderme</span>
                   <p className="text-slate-600 dark:text-zinc-400 mt-0.5">
                     Mükellef kartını açıp ilgili belgenin sağındaki mavi gönder simgesine tıklayarak doğrudan o PDF'i iletebilirsiniz.
                   </p>
                 </div>
 
                 <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-750">
-                  <span className="font-bold text-slate-900 dark:text-zinc-100">2. Bir Mükellefin Bekleyenlerini Gönderme</span>
+                  <span className="font-bold text-slate-900 dark:text-zinc-100">3. Bir Mükellefin Bekleyenlerini Gönderme</span>
                   <p className="text-slate-600 dark:text-zinc-400 mt-0.5">
                     Mükellef başlığındaki <em>"Bekleyenleri Gönder (X)"</em> butonuna tıklayarak o firmanın o aya ait henüz gitmemiş tüm evraklarını tek pakette iletebilirsiniz.
                   </p>
                 </div>
 
                 <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-750">
-                  <span className="font-bold text-slate-900 dark:text-zinc-100">3. Tüm Ofisi Toplu Gönderme</span>
+                  <span className="font-bold text-slate-900 dark:text-zinc-100">4. Tüm Ofisi Toplu Gönderme</span>
                   <p className="text-slate-600 dark:text-zinc-400 mt-0.5">
                     Üst araç çubuğundaki <em>"Bekleyenleri Toplu Gönder"</em> butonuna basarak o ay henüz evrakı gitmemiş tüm mükellefleri sırayla ve güvenli aralıklarla otomatik gönderebilirsiniz.
-                  </p>
-                </div>
-
-                <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-750">
-                  <span className="font-bold text-slate-900 dark:text-zinc-100">4. WhatsApp Web ile Doğrudan Açma</span>
-                  <p className="text-slate-600 dark:text-zinc-400 mt-0.5">
-                    Mükellef kartındaki telefonun yanındaki dış bağlantı simgesine tıklayarak tarayıcınızda WhatsApp Web sohbetini doğrudan açabilirsiniz.
                   </p>
                 </div>
               </div>
@@ -236,20 +258,20 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
 
           {activeTab === 'phone' && (
             <div className="space-y-3">
-              <h4 className="font-bold text-sm text-slate-900 dark:text-zinc-100">Telefon ve Mükellef Bilgileri</h4>
+              <h4 className="font-bold text-sm text-slate-900 dark:text-zinc-100">Telefon ve E-posta Bilgileri</h4>
               <p className="text-slate-600 dark:text-zinc-300">
-                Mükellef telefon numaraları her firmanın Zirve klasöründeki <code>SirketBilgileri</code> dosyasından otomatik okunur.
+                Mükellef telefon ve e-posta adresleri her firmanın Zirve klasöründeki <code>SirketBilgileri</code> dosyasından otomatik okunur.
               </p>
 
               <div className="p-3.5 bg-slate-50 dark:bg-zinc-750 rounded-xl border border-slate-200 dark:border-zinc-700 space-y-2">
-                <span className="font-semibold text-slate-900 dark:text-zinc-100">Numara Değiştirme veya Ekleme:</span>
+                <span className="font-semibold text-slate-900 dark:text-zinc-100">Bilgi Değiştirme veya Ekleme:</span>
                 <p className="text-slate-600 dark:text-zinc-400">
-                  Eğer bir mükellefin telefon numarası eksikse veya muhasebe evraklarını alan yetkilinin numarası farklıysa:
+                  Eğer bir mükellefin telefon veya e-posta adresi eksikse ya da evrakları alan yetkilinin bilgileri farklıysa:
                 </p>
                 <ol className="list-decimal pl-5 space-y-1 text-slate-600 dark:text-zinc-400">
                   <li>Mükellef kartında telefonun yanındaki <strong>kalem (düzenle)</strong> simgesine tıklayın.</li>
-                  <li>Yeni telefon numarasını ve dilerseniz ofis içi özel notunuzu girip kaydedin.</li>
-                  <li>Kaydedilen numara yerel veritabanında saklanır ve sonraki tüm gönderimlerde otomatik kullanılır.</li>
+                  <li>Yeni telefon numarasını, e-posta adresini ve dilerseniz ofis içi özel notunuzu girip kaydedin.</li>
+                  <li>Kaydedilen bilgiler yerel veritabanında saklanır ve sonraki tüm gönderimlerde otomatik kullanılır.</li>
                 </ol>
               </div>
             </div>

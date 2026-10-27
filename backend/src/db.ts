@@ -47,6 +47,24 @@ db.exec(`
   );
 `);
 
+// Migrations for existing databases: check and add missing columns
+const sendLogsColumns = db.prepare("PRAGMA table_info(send_logs)").all() as Array<{ name: string }>;
+const sendLogsColNames = new Set(sendLogsColumns.map(c => c.name));
+
+if (!sendLogsColNames.has('channel')) {
+  db.exec("ALTER TABLE send_logs ADD COLUMN channel TEXT DEFAULT 'WHATSAPP'");
+}
+if (!sendLogsColNames.has('email')) {
+  db.exec("ALTER TABLE send_logs ADD COLUMN email TEXT");
+}
+
+const overrideColumns = db.prepare("PRAGMA table_info(mukellef_overrides)").all() as Array<{ name: string }>;
+const overrideColNames = new Set(overrideColumns.map(c => c.name));
+
+if (!overrideColNames.has('custom_email')) {
+  db.exec("ALTER TABLE mukellef_overrides ADD COLUMN custom_email TEXT");
+}
+
 // Types
 export interface SendLog {
   id?: number;
@@ -57,6 +75,8 @@ export interface SendLog {
   category: string;
   phone: string;
   recipient_name?: string;
+  channel?: 'WHATSAPP' | 'EMAIL' | 'BOTH';
+  email?: string;
   status: 'SENT' | 'FAILED' | 'PENDING';
   error_message?: string;
   wa_message_id?: string;
@@ -68,6 +88,7 @@ export interface MukellefOverride {
   mukellef_code: string;
   custom_name?: string;
   custom_phone?: string;
+  custom_email?: string;
   notes?: string;
   updated_at?: string;
 }
@@ -79,8 +100,8 @@ export const dbService = {
     const stmt = db.prepare(`
       INSERT INTO send_logs (
         mukellef_code, document_name, document_path, period, 
-        category, phone, recipient_name, status, error_message, wa_message_id, batch_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        category, phone, recipient_name, channel, email, status, error_message, wa_message_id, batch_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const info = stmt.run(
       log.mukellef_code,
@@ -88,8 +109,10 @@ export const dbService = {
       log.document_path,
       log.period,
       log.category,
-      log.phone,
+      log.phone || '',
       log.recipient_name || '',
+      log.channel || 'WHATSAPP',
+      log.email || null,
       log.status,
       log.error_message || null,
       log.wa_message_id || null,
@@ -144,11 +167,12 @@ export const dbService = {
 
   saveOverride(override: MukellefOverride): void {
     const stmt = db.prepare(`
-      INSERT INTO mukellef_overrides (mukellef_code, custom_name, custom_phone, notes, updated_at)
-      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+      INSERT INTO mukellef_overrides (mukellef_code, custom_name, custom_phone, custom_email, notes, updated_at)
+      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(mukellef_code) DO UPDATE SET
         custom_name = excluded.custom_name,
         custom_phone = excluded.custom_phone,
+        custom_email = excluded.custom_email,
         notes = excluded.notes,
         updated_at = CURRENT_TIMESTAMP
     `);
@@ -156,6 +180,7 @@ export const dbService = {
       override.mukellef_code,
       override.custom_name || null,
       override.custom_phone || null,
+      override.custom_email || null,
       override.notes || null
     );
   },

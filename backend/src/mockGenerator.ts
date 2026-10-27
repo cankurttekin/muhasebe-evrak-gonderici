@@ -8,6 +8,7 @@ interface MockCompany {
   code: string;
   name: string;
   phone: string;
+  email: string;
   contactPerson: string;
   taxNumber: string;
   taxOffice: string;
@@ -26,6 +27,7 @@ const mockCompanies: MockCompany[] = [
     code: 'KAYALAR_LTD',
     name: 'KAYALAR TEKSTİL VE KONFEKSİYON SAN. TİC. LTD. ŞTİ.',
     phone: '0532 555 12 34',
+    email: 'muhasebe@kayalar.com.tr',
     contactPerson: 'Mustafa Kaya',
     taxNumber: '5480123456',
     taxOffice: 'Marmara Kurumlar V.D.',
@@ -94,6 +96,7 @@ const mockCompanies: MockCompany[] = [
     code: 'YILMAZLAR_AS',
     name: 'YILMAZLAR İNŞAAT VE TAAHHÜT A.Ş.',
     phone: '0542 444 56 78',
+    email: 'info@yilmazlarinsaat.com',
     contactPerson: 'Ahmet Yılmaz',
     taxNumber: '9840234567',
     taxOffice: 'Kozyatağı V.D.',
@@ -126,6 +129,7 @@ const mockCompanies: MockCompany[] = [
     code: 'DEMIR_GIDA',
     name: 'DEMİR GIDA TİCARET VE PAZARLAMA',
     phone: '0555 333 88 99',
+    email: 'muhasebe@demirgida.com',
     contactPerson: 'Serkan Demir',
     taxNumber: '3120456789',
     taxOffice: 'Güneşli V.D.',
@@ -151,6 +155,7 @@ const mockCompanies: MockCompany[] = [
     code: 'AKDENIZ_LOJISTIK',
     name: 'AKDENİZ ULUSLARARASI LOJİSTİK HİZM. A.Ş.',
     phone: '0533 111 22 33',
+    email: 'finans@akdenizlojistik.com',
     contactPerson: 'Cem Akdeniz',
     taxNumber: '1120987654',
     taxOffice: 'Büyük Mükellefler V.D.',
@@ -183,6 +188,7 @@ const mockCompanies: MockCompany[] = [
     code: 'OZKAN_MIMARLIK',
     name: 'ÖZKAN MİMARLIK VE MÜHENDİSLİK LTD. ŞTİ.',
     phone: '0505 777 99 00',
+    email: 'info@ozkanmimarlik.com',
     contactPerson: 'Banu Özkan',
     taxNumber: '6740876512',
     taxOffice: 'Beşiktaş V.D.',
@@ -208,6 +214,7 @@ const mockCompanies: MockCompany[] = [
     code: 'ANADOLU_RESTORAN',
     name: 'ANADOLU LEZZETLERİ RESTORAN İŞL. GIDA TİC.',
     phone: '0544 888 66 11',
+    email: 'muhasebe@anadolurestoran.com',
     contactPerson: 'Halil Anadolu',
     taxNumber: '4580345612',
     taxOffice: 'Ümraniye V.D.',
@@ -345,6 +352,7 @@ export async function generateMockZirveData(): Promise<void> {
 Unvan=${company.name}
 Yetkili=${company.contactPerson}
 phone=${company.phone}
+email=${company.email}
 VergiNo=${company.taxNumber}
 VergiDairesi=${company.taxOffice}
 Adres=${company.address}

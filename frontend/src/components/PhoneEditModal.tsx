@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Phone, Check } from 'lucide-react';
+import { X, Phone, Mail, Check } from 'lucide-react';
 import { Mukellef, api } from '../api';
 
 interface PhoneEditModalProps {
@@ -11,6 +11,7 @@ interface PhoneEditModalProps {
 export const PhoneEditModal: React.FC<PhoneEditModalProps> = ({ mukellef, onClose, onSuccess }) => {
   const [customName, setCustomName] = useState('');
   const [customPhone, setCustomPhone] = useState('');
+  const [customEmail, setCustomEmail] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -18,6 +19,7 @@ export const PhoneEditModal: React.FC<PhoneEditModalProps> = ({ mukellef, onClos
     if (mukellef) {
       setCustomName(mukellef.name || '');
       setCustomPhone(mukellef.phone || '');
+      setCustomEmail(mukellef.email || '');
       setNotes(mukellef.notes || '');
     }
   }, [mukellef]);
@@ -31,6 +33,7 @@ export const PhoneEditModal: React.FC<PhoneEditModalProps> = ({ mukellef, onClos
       await api.updateMukellef(mukellef.code, {
         customName,
         customPhone,
+        customEmail,
         notes
       });
       onSuccess();
@@ -88,7 +91,23 @@ export const PhoneEditModal: React.FC<PhoneEditModalProps> = ({ mukellef, onClos
                 onChange={(e) => setCustomPhone(e.target.value)}
                 className="w-full text-xs pl-9 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="05XX XXX XX XX"
-                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-200 mb-1 flex items-center justify-between">
+              <span>E-posta Adresi</span>
+              <span className="text-[11px] text-slate-400 font-normal">Örn: muhasebe@sirket.com</span>
+            </label>
+            <div className="relative">
+              <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="email"
+                value={customEmail}
+                onChange={(e) => setCustomEmail(e.target.value)}
+                className="w-full text-xs pl-9 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="ornek@sirket.com"
               />
             </div>
           </div>
@@ -102,7 +121,7 @@ export const PhoneEditModal: React.FC<PhoneEditModalProps> = ({ mukellef, onClos
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               className="w-full text-xs border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Örn: Yetkili muhasebe sorumlusu Gamze Hanım..."
+              placeholder="Örn: Yetkili muhasebe sorumlusu Temel Bey..."
             />
           </div>
 

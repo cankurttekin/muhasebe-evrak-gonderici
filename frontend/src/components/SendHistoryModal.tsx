@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Search, CheckCircle2, AlertTriangle, History, RefreshCw } from 'lucide-react';
+import { X, Search, CheckCircle2, AlertTriangle, History, RefreshCw, Smartphone, Mail } from 'lucide-react';
 import { SendLogItem, api } from '../api';
 
 interface SendHistoryModalProps {
@@ -38,7 +38,9 @@ export const SendHistoryModal: React.FC<SendHistoryModalProps> = ({ isOpen, onCl
       log.mukellef_code.toLowerCase().includes(q) ||
       (log.recipient_name && log.recipient_name.toLowerCase().includes(q)) ||
       log.document_name.toLowerCase().includes(q) ||
-      log.phone.includes(q) ||
+      (log.phone && log.phone.includes(q)) ||
+      (log.email && log.email.toLowerCase().includes(q)) ||
+      (log.channel && log.channel.toLowerCase().includes(q)) ||
       log.period.includes(q)
     );
   });
@@ -54,7 +56,7 @@ export const SendHistoryModal: React.FC<SendHistoryModalProps> = ({ isOpen, onCl
             </div>
             <div>
               <h3 className="font-bold text-slate-900 dark:text-zinc-100 text-sm">Gönderim Geçmişi ve Günlükleri</h3>
-              <p className="text-xs text-slate-500 dark:text-zinc-400">Mükelleflere iletilen tüm evrak kayıtları</p>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">WhatsApp ve E-posta ile iletilen tüm evrak kayıtları</p>
             </div>
           </div>
 
@@ -84,7 +86,7 @@ export const SendHistoryModal: React.FC<SendHistoryModalProps> = ({ isOpen, onCl
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Firma adı, belge adı veya telefon ile ara..."
+              placeholder="Firma adı, belge adı, telefon veya e-posta ile ara..."
               className="w-full text-xs pl-9 pr-4 py-2 border border-slate-200 dark:border-zinc-700 rounded-lg bg-slate-50 dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -104,7 +106,7 @@ export const SendHistoryModal: React.FC<SendHistoryModalProps> = ({ isOpen, onCl
                   <th className="py-2.5 px-3">Mükellef</th>
                   <th className="py-2.5 px-3">Belge</th>
                   <th className="py-2.5 px-3">Dönem</th>
-                  <th className="py-2.5 px-3">Telefon</th>
+                  <th className="py-2.5 px-3">Kanal & Alıcı</th>
                   <th className="py-2.5 px-3 rounded-r-lg">Durum</th>
                 </tr>
               </thead>
@@ -128,7 +130,30 @@ export const SendHistoryModal: React.FC<SendHistoryModalProps> = ({ isOpen, onCl
                         <div className="text-[10px] text-slate-400 dark:text-zinc-500">{log.category}</div>
                       </td>
                       <td className="py-2.5 px-3 font-mono text-slate-500 dark:text-zinc-400">{log.period}</td>
-                      <td className="py-2.5 px-3 font-mono text-[11px]">{log.phone}</td>
+                      <td className="py-2.5 px-3">
+                        {log.channel === 'EMAIL' ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">
+                              <Mail className="w-2.5 h-2.5" /> E-posta
+                            </span>
+                            <span className="font-mono text-[11px] truncate max-w-[150px]">{log.email || '-'}</span>
+                          </div>
+                        ) : log.channel === 'BOTH' ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">
+                              İkisi
+                            </span>
+                            <span className="font-mono text-[11px]">{log.phone || log.email}</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                              <Smartphone className="w-2.5 h-2.5" /> WhatsApp
+                            </span>
+                            <span className="font-mono text-[11px]">{log.phone || '-'}</span>
+                          </div>
+                        )}
+                      </td>
                       <td className="py-2.5 px-3 whitespace-nowrap">
                         {log.status === 'SENT' ? (
                           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
