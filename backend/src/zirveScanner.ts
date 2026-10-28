@@ -1,7 +1,66 @@
 import fs from 'fs';
 import path from 'path';
+import { createRequire } from 'module';
 import { CONFIG } from './config.js';
 import { dbService, SendLog } from './db.js';
+
+const require = createRequire(import.meta.url);
+let iconv: any;
+try {
+  iconv = require('iconv-lite');
+} catch {
+  iconv = null;
+}
+
+export interface DirectoryOption {
+  key: string;
+  path: string;
+  label: string;
+  enabled: boolean;
+  description?: string;
+}
+
+export const DEFAULT_DIRECTORY_OPTIONS: DirectoryOption[] = [
+  { key: 'BEYANNAME', path: 'BEYANNAME', label: 'BEYANNAME', enabled: true, description: 'Vergi Beyannameleri (KDV, Muhtasar, Gelir, Kurumlar, vb.)' },
+  { key: 'DILEKCELER', path: 'DİLEKÇELER', label: 'DİLEKÇELER', enabled: true, description: 'İnteraktif Vergi Dairesi Dilekçeleri' },
+  { key: 'ETEBLIGAT', path: 'eTebligat', label: 'eTebligat', enabled: true, description: 'Elektronik Tebligatlar (GİB / Ticaret)' },
+  { key: 'EBILDIRGE_HIZMET', path: 'E_BİLDİRGE/HİZMET_LİSTESİ', label: 'E_BİLDİRGE / HİZMET_LİSTESİ', enabled: true, description: 'SGK Sigortalı Hizmet Listeleri' },
+  { key: 'EBILDIRGE_TAHAKKUK', path: 'E_BİLDİRGE/TAHAKKUK', label: 'E_BİLDİRGE / TAHAKKUK', enabled: true, description: 'SGK Bildirge Tahakkuk Fişleri' },
+  { key: 'TAHAKKUK', path: 'TAHAKKUK', label: 'TAHAKKUK', enabled: true, description: 'Vergi Tahakkuk Fişleri' },
+  { key: 'SGK_BORCU_YOKTUR', path: 'SGK_BORCU_YOKTUR', label: 'SGK_BORCU_YOKTUR', enabled: false, description: 'SGK Borcu Yoktur Yazıları' },
+  { key: 'VERGI_LEVHALARI', path: 'Vergi_Levhaları', label: 'Vergi_Levhaları', enabled: false, description: 'Vergi Levhaları' },
+  { key: 'TICARET_SICIL', path: 'Ticaret_Sicil_Gazeteleri', label: 'Ticaret_Sicil_Gazeteleri', enabled: false, description: 'Sicil Gazetesi İlanları' },
+  { key: 'ISE_GIRIS_CIKIS', path: 'İŞE_GİRİŞ_ÇIKIŞ', label: 'İŞE_GİRİŞ_ÇIKIŞ', enabled: false, description: 'Sigortalı İşe Giriş / Ayrılış Bildirgeleri' },
+  { key: 'FIS_BELGELERI', path: 'FİŞ_BELGELERİ', label: 'FİŞ_BELGELERİ', enabled: false, description: 'Muhasebe Fiş ve Belge Ekleri' },
+  { key: 'DIGER', path: 'DİĞER', label: 'DİĞER', enabled: false, description: 'Diğer Belgeler' }
+];
+
+export function getDirectoryOptions(): DirectoryOption[] {
+  const raw = dbService.getSetting('scanned_directories', '');
+  if (!raw) return DEFAULT_DIRECTORY_OPTIONS;
+  try {
+    const saved = JSON.parse(raw) as DirectoryOption[];
+    const map = new Map<string, DirectoryOption>(saved.map(d => [d.key, d]));
+    return DEFAULT_DIRECTORY_OPTIONS.map(def => {
+      const existing = map.get(def.key);
+      return existing ? { ...def, enabled: existing.enabled } : def;
+    });
+  } catch {
+    return DEFAULT_DIRECTORY_OPTIONS;
+  }
+}
+
+export function saveDirectoryOptions(options: DirectoryOption[]): void {
+  dbService.setSetting('scanned_directories', JSON.stringify(options));
+}
+
+function normalizePathForCompare(p: string): string {
+  return p
+    .replace(/\\/g, '/')
+    .replace(/^\/+|\/+$/g, '')
+    .toLocaleLowerCase('tr-TR')
+    .replace(/i̇/g, 'i');
+}
 
 export interface ZirveDocument {
   id: string; // unique hash or safe path
@@ -103,10 +162,12 @@ export async function parseSirketBilgileri(companyFolderPath: string): Promise<{
 }> {
   const possibleFileNames = [
     'SirketBilgileri',
-    'SirketBilgileri.txt',
     'SirketBilgileri.ini',
+    'SirketBilgileri.txt',
+    'sirketbilgileri.ini',
     'sirketbilgileri.txt',
     'sirketbilgileri',
+    'SIRKETBILGILERI.INI',
     'SIRKETBILGILERI.TXT'
   ];
 
@@ -124,9 +185,23 @@ export async function parseSirketBilgileri(companyFolderPath: string): Promise<{
   }
 
   try {
-    const content = await fs.promises.readFile(filePath, 'utf-8');
+    const buf = await fs.promises.readFile(filePath);
+    let content = '';
+    const utf8Str = buf.toString('utf-8');
+    if (iconv && (utf8Str.includes('\ufffd') || !/^[\x00-\x7F]*$/.test(utf8Str))) {
+      content = iconv.decode(buf, 'win1254');
+    } else {
+      content = utf8Str;
+    }
+
     const lines = content.split(/\r?\n/);
     const result: { name?: string; phone?: string; email?: string; contactPerson?: string; taxNumber?: string } = {};
+    let alanKodu = '';
+    let tel = '';
+    let edit11 = '';
+    let edit2 = '';
+    let adi = '';
+    let mobilePhone = '';
 
     for (const line of lines) {
       const trimmed = line.trim();
@@ -143,17 +218,28 @@ export async function parseSirketBilgileri(companyFolderPath: string): Promise<{
 
       if (!val) continue;
 
-      // Match phone
+      // Match mobile phone specifically
       if (
-        key === 'phone' ||
-        key === 'telefon' ||
-        key === 'yetkilitel' ||
-        key === 'yetkili_tel' ||
-        key === 'gsm' ||
         key === 'ceptel' ||
         key === 'cep' ||
+        key === 'gsm' ||
+        key === 'mobil' ||
         key === 'yetkiligsm' ||
-        key === 'tel1'
+        key === 'yetkilicep'
+      ) {
+        if (!mobilePhone) mobilePhone = val;
+      }
+      // Match phone fields
+      else if (key === 'alankodu' || key === 'alan_kodu') {
+        alanKodu = val;
+      } else if (key === 'tel' || key === 'telefon' || key === 'tel1') {
+        tel = val;
+      } else if (key === 'edit11') {
+        edit11 = val;
+      } else if (
+        key === 'phone' ||
+        key === 'yetkilitel' ||
+        key === 'yetkili_tel'
       ) {
         if (!result.phone) result.phone = val;
       }
@@ -171,15 +257,18 @@ export async function parseSirketBilgileri(companyFolderPath: string): Promise<{
       ) {
         if (!result.email) result.email = val;
       }
-      // Match company name
-      else if (
+      // Match company name parts in Zirve (Edit2 = title line 1, Adi = title line 2)
+      else if (key === 'edit2') {
+        edit2 = val;
+      } else if (key === 'adi') {
+        adi = val;
+      } else if (
         key === 'unvan' ||
         key === 'firmaadi' ||
         key === 'firma_adi' ||
         key === 'sirketadi' ||
         key === 'sirket_adi' ||
-        key === 'name' ||
-        key === 'adi'
+        key === 'name'
       ) {
         if (!result.name) result.name = val;
       }
@@ -202,6 +291,30 @@ export async function parseSirketBilgileri(companyFolderPath: string): Promise<{
         key === 'tckimlikno'
       ) {
         if (!result.taxNumber) result.taxNumber = val;
+      }
+    }
+
+    // Determine best company name
+    if (!result.name) {
+      if (edit2 && adi) {
+        result.name = `${edit2} ${adi}`.trim();
+      } else if (edit2) {
+        result.name = edit2;
+      } else if (adi) {
+        result.name = adi;
+      }
+    }
+
+    // Determine best phone number: mobile first, then alanKodu+tel or edit11
+    if (mobilePhone) {
+      result.phone = mobilePhone;
+    } else if (!result.phone) {
+      if (alanKodu && tel) {
+        result.phone = `${alanKodu}${tel}`;
+      } else if (edit11) {
+        result.phone = edit11;
+      } else if (tel) {
+        result.phone = tel;
       }
     }
 
@@ -252,6 +365,36 @@ export function parseDocFileInfo(fileName: string, mtime: Date): { period: strin
   return { period, docType };
 }
 
+async function collectPdfFiles(dir: string): Promise<Array<{ fullPath: string; relDir: string; fileName: string }>> {
+  const results: Array<{ fullPath: string; relDir: string; fileName: string }> = [];
+
+  async function walk(currentDir: string, currentRel: string) {
+    let entries: fs.Dirent[] = [];
+    try {
+      entries = await fs.promises.readdir(currentDir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const full = path.join(currentDir, entry.name);
+      const nextRel = currentRel ? `${currentRel}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        await walk(full, nextRel);
+      } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.pdf')) {
+        results.push({
+          fullPath: full,
+          relDir: currentRel,
+          fileName: entry.name
+        });
+      }
+    }
+  }
+
+  await walk(dir, '');
+  return results;
+}
+
 /**
  * Strictly READ-ONLY scan of ZIRVE_DATA_PATH.
  * Gathers all mükellefs and their documents.
@@ -275,6 +418,8 @@ export async function scanZirveData(targetPeriod?: string): Promise<ScannerSumma
   const sentMap = dbService.getSentDocumentsMap();
   // Get overrides from SQLite
   const overrides = dbService.getOverrides();
+  // Get directory configuration options
+  const directoryOptions = getDirectoryOptions();
 
   const entries = await fs.promises.readdir(dataPath, { withFileTypes: true });
   const companyDirs = entries.filter(e => e.isDirectory() && !e.name.startsWith('.'));
@@ -296,11 +441,19 @@ export async function scanZirveData(targetPeriod?: string): Promise<ScannerSumma
     const phoneNorm = normalizePhone(rawPhone);
     const finalEmail = override?.custom_email || companyInfo.email || '';
 
-    // Look for DOKUMANLAR folder (case-insensitive check)
+    // Look for DÖKÜMANLAR / DOKUMANLAR folder (case-insensitive & Turkish char tolerant)
     let dokumanlarPath = '';
     try {
       const companySubEntries = await fs.promises.readdir(companyFolderPath, { withFileTypes: true });
-      const dokDir = companySubEntries.find(e => e.isDirectory() && e.name.toLowerCase() === 'dokumanlar');
+      const dokDir = companySubEntries.find(e => {
+        if (!e.isDirectory()) return false;
+        const norm = e.name
+          .normalize('NFC')
+          .toUpperCase()
+          .replace(/Ö/g, 'O')
+          .replace(/Ü/g, 'U');
+        return norm === 'DOKUMANLAR';
+      });
       if (dokDir) {
         dokumanlarPath = path.join(companyFolderPath, dokDir.name);
       }
@@ -312,69 +465,66 @@ export async function scanZirveData(targetPeriod?: string): Promise<ScannerSumma
 
     if (dokumanlarPath && fs.existsSync(dokumanlarPath)) {
       try {
-        const dokSubEntries = await fs.promises.readdir(dokumanlarPath, { withFileTypes: true });
+        const allPdfs = await collectPdfFiles(dokumanlarPath);
 
-        for (const sub of dokSubEntries) {
-          const subPath = path.join(dokumanlarPath, sub.name);
+        for (const pdf of allPdfs) {
+          const relDirNorm = normalizePathForCompare(pdf.relDir);
 
-          if (sub.isDirectory()) {
-            const category = sub.name.toUpperCase();
-            const files = await fs.promises.readdir(subPath, { withFileTypes: true });
-
-            for (const f of files) {
-              if (f.isFile() && f.name.toLowerCase().endsWith('.pdf')) {
-                const fullFilePath = path.join(subPath, f.name);
-                const relPath = path.relative(dataPath, fullFilePath);
-                const stat = await fs.promises.stat(fullFilePath);
-
-                const { period, docType } = parseDocFileInfo(f.name, stat.mtime);
-                periodsSet.add(period);
-
-                const sentLog = sentMap.get(relPath);
-
-                companyDocs.push({
-                  id: Buffer.from(relPath).toString('base64url'),
-                  fileName: f.name,
-                  relativePath: relPath,
-                  fullPath: fullFilePath,
-                  category,
-                  period,
-                  docType,
-                  size: stat.size,
-                  modifiedAt: stat.mtime.toISOString(),
-                  isSent: !!sentLog,
-                  lastSentAt: sentLog?.sent_at,
-                  sentPhone: sentLog?.phone
-                });
-              }
+          // Check against enabled directory options
+          let matchedOption: DirectoryOption | undefined;
+          for (const opt of directoryOptions) {
+            const optNorm = normalizePathForCompare(opt.path);
+            if (relDirNorm === optNorm || relDirNorm.startsWith(optNorm + '/') || (optNorm === '' && relDirNorm === '')) {
+              matchedOption = opt;
+              break;
             }
-          } else if (sub.isFile() && sub.name.toLowerCase().endsWith('.pdf')) {
-            // Document placed directly in DOKUMANLAR folder
-            const fullFilePath = subPath;
-            const relPath = path.relative(dataPath, fullFilePath);
-            const stat = await fs.promises.stat(fullFilePath);
-            const { period, docType } = parseDocFileInfo(sub.name, stat.mtime);
-            periodsSet.add(period);
-            const sentLog = sentMap.get(relPath);
-
-            companyDocs.push({
-              id: Buffer.from(relPath).toString('base64url'),
-              fileName: sub.name,
-              relativePath: relPath,
-              fullPath: fullFilePath,
-              category: 'DOKÜMAN',
-              period,
-              docType,
-              size: stat.size,
-              modifiedAt: stat.mtime.toISOString(),
-              isSent: !!sentLog,
-              lastSentAt: sentLog?.sent_at,
-              sentPhone: sentLog?.phone
-            });
           }
+
+          // If matched option exists and is disabled, skip it
+          if (matchedOption && !matchedOption.enabled) {
+            continue;
+          }
+
+          // If no option matched and relDir is not empty, check if parent matches or disable by default
+          if (!matchedOption && pdf.relDir) {
+            // Unconfigured directories are disabled by default
+            continue;
+          }
+
+          const fullFilePath = pdf.fullPath;
+          const relPath = path.relative(dataPath, fullFilePath);
+          const stat = await fs.promises.stat(fullFilePath);
+
+          const { period, docType } = parseDocFileInfo(pdf.fileName, stat.mtime);
+          periodsSet.add(period);
+
+          const sentLog = sentMap.get(relPath);
+
+          // Determine readable category
+          let category = 'DOKÜMAN';
+          if (matchedOption) {
+            category = matchedOption.label;
+          } else if (pdf.relDir) {
+            category = pdf.relDir.replace(/\//g, ' - ').toUpperCase();
+          }
+
+          companyDocs.push({
+            id: Buffer.from(relPath).toString('base64url'),
+            fileName: pdf.fileName,
+            relativePath: relPath,
+            fullPath: fullFilePath,
+            category,
+            period,
+            docType,
+            size: stat.size,
+            modifiedAt: stat.mtime.toISOString(),
+            isSent: !!sentLog,
+            lastSentAt: sentLog?.sent_at,
+            sentPhone: sentLog?.phone
+          });
         }
       } catch (err) {
-        console.error(`Error scanning DOKUMANLAR in ${companyFolderPath}:`, err);
+        console.error(`Error scanning documents in ${companyFolderPath}:`, err);
       }
     }
 

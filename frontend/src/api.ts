@@ -89,6 +89,14 @@ export interface SmtpConfig {
   fromEmail: string;
 }
 
+export interface DirectoryOption {
+  key: string;
+  path: string;
+  label: string;
+  enabled: boolean;
+  description?: string;
+}
+
 export interface WhatsAppStatus {
   success: boolean;
   status: 'DISCONNECTED' | 'CONNECTING' | 'QR_READY' | 'CONNECTED';
@@ -288,12 +296,13 @@ export const api = {
       zirveDataPath: string;
       smtp: SmtpConfig;
       isSmtpConfigured: boolean;
+      directoryOptions?: DirectoryOption[];
     };
   }> {
     return request('/api/settings');
   },
 
-  async saveSettings(data: { messageTemplate?: string; smtp?: Partial<SmtpConfig> }) {
+  async saveSettings(data: { messageTemplate?: string; smtp?: Partial<SmtpConfig>; directoryOptions?: DirectoryOption[] }) {
     return request('/api/settings', {
       method: 'POST',
       body: JSON.stringify(data)

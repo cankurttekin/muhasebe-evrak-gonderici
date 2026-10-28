@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: zirve_whatsapp_app
+    container_name: zirve_evrak_gonderici
     restart: unless-stopped
     ports:
       - "5000:5000"

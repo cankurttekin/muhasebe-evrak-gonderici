@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { CONFIG } from '../config.js';
 import { dbService } from '../db.js';
-import { scanZirveData } from '../zirveScanner.js';
+import { scanZirveData, getDirectoryOptions, saveDirectoryOptions, DEFAULT_DIRECTORY_OPTIONS } from '../zirveScanner.js';
 import { whatsappService } from '../whatsappService.js';
 import { emailService, formatSmtpError } from '../emailService.js';
 
@@ -390,18 +390,22 @@ apiRouter.get('/settings', (_req: Request, res: Response) => {
       messageTemplate: template,
       zirveDataPath: CONFIG.ZIRVE_DATA_PATH,
       smtp: emailService.getPublicSmtpConfig(),
-      isSmtpConfigured: emailService.isConfigured()
+      isSmtpConfigured: emailService.isConfigured(),
+      directoryOptions: getDirectoryOptions()
     }
   });
 });
 
 apiRouter.post('/settings', (req: Request, res: Response) => {
-  const { messageTemplate, smtp } = req.body;
+  const { messageTemplate, smtp, directoryOptions } = req.body;
   if (messageTemplate !== undefined) {
     dbService.setSetting('message_template', messageTemplate);
   }
   if (smtp) {
     emailService.saveSmtpConfig(smtp);
+  }
+  if (Array.isArray(directoryOptions)) {
+    saveDirectoryOptions(directoryOptions);
   }
   res.json({ success: true, message: 'Ayarlar kaydedildi' });
 });
