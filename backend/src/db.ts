@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { CONFIG } from './config.js';
 
 // Ensure data directory exists
@@ -45,6 +46,27 @@ db.exec(`
     key TEXT PRIMARY KEY,
     value TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'USER', -- 'ADMIN' | 'USER'
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT UNIQUE NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
 `);
 
 // Migrations for existing databases: check and add missing columns
@@ -91,6 +113,48 @@ export interface MukellefOverride {
   custom_email?: string;
   notes?: string;
   updated_at?: string;
+}
+
+export type UserRole = 'ADMIN' | 'USER';
+
+export interface User {
+  id: number;
+  username: string;
+  password_hash: string;
+  name: string;
+  role: UserRole;
+  is_active: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type SafeUser = Omit<User, 'password_hash'>;
+
+export interface Session {
+  id: number;
+  user_id: number;
+  token: string;
+  expires_at: string;
+  created_at: string;
+}
+
+// Password hashing with scrypt
+export function hashPassword(password: string): string {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+  return `${salt}:${hash}`;
+}
+
+export function verifyPassword(password: string, storedHash: string): boolean {
+  try {
+    const [salt, key] = storedHash.split(':');
+    if (!salt || !key) return false;
+    const keyBuffer = Buffer.from(key, 'hex');
+    const derivedKey = crypto.scryptSync(password, salt, 64);
+    return crypto.timingSafeEqual(keyBuffer, derivedKey);
+  } catch {
+    return false;
+  }
 }
 
 // Database Helper Methods
@@ -199,5 +263,106 @@ export const dbService = {
       ON CONFLICT(key) DO UPDATE SET value = excluded.value
     `);
     stmt.run(key, value);
+  },
+
+  // Users & Authentication
+  getUserByUsername(username: string): User | undefined {
+    const stmt = db.prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?)');
+    return stmt.get(username) as User | undefined;
+  },
+
+  getUserById(id: number): User | undefined {
+    const stmt = db.prepare('SELECT * FROM users WHERE id = ?');
+    return stmt.get(id) as User | undefined;
+  },
+
+  getAllUsers(): SafeUser[] {
+    const stmt = db.prepare(`
+      SELECT id, username, name, role, is_active, created_at, updated_at 
+      FROM users 
+      ORDER BY id ASC
+    `);
+    return stmt.all() as SafeUser[];
+  },
+
+  createUser(username: string, passwordHash: string, name: string, role: UserRole = 'USER'): number {
+    const stmt = db.prepare(`
+      INSERT INTO users (username, password_hash, name, role, is_active)
+      VALUES (?, ?, ?, ?, 1)
+    `);
+    const info = stmt.run(username.trim().toLowerCase(), passwordHash, name.trim(), role);
+    return Number(info.lastInsertRowid);
+  },
+
+  updateUser(id: number, data: { name?: string; role?: UserRole; is_active?: number; passwordHash?: string }): void {
+    const updates: string[] = ['updated_at = CURRENT_TIMESTAMP'];
+    const params: any[] = [];
+
+    if (data.name !== undefined) {
+      updates.push('name = ?');
+      params.push(data.name.trim());
+    }
+    if (data.role !== undefined) {
+      updates.push('role = ?');
+      params.push(data.role);
+    }
+    if (data.is_active !== undefined) {
+      updates.push('is_active = ?');
+      params.push(data.is_active ? 1 : 0);
+    }
+    if (data.passwordHash !== undefined) {
+      updates.push('password_hash = ?');
+      params.push(data.passwordHash);
+    }
+
+    params.push(id);
+    const query = `UPDATE users SET ${updates.join(', ')} WHERE id = ?`;
+    db.prepare(query).run(...params);
+  },
+
+  deleteUser(id: number): void {
+    db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  },
+
+  createSession(userId: number, token: string, expiresAt: Date): void {
+    const stmt = db.prepare(`
+      INSERT INTO sessions (user_id, token, expires_at)
+      VALUES (?, ?, ?)
+    `);
+    stmt.run(userId, token, expiresAt.toISOString());
+  },
+
+  getSessionUser(token: string): SafeUser | undefined {
+    const stmt = db.prepare(`
+      SELECT u.id, u.username, u.name, u.role, u.is_active, u.created_at, u.updated_at
+      FROM sessions s
+      JOIN users u ON s.user_id = u.id
+      WHERE s.token = ? AND datetime(s.expires_at) > datetime('now') AND u.is_active = 1
+    `);
+    return stmt.get(token) as SafeUser | undefined;
+  },
+
+  deleteSession(token: string): void {
+    db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+  },
+
+  cleanupExpiredSessions(): void {
+    db.prepare("DELETE FROM sessions WHERE datetime(expires_at) <= datetime('now')").run();
+  },
+
+  seedInitialAdmin(): void {
+    const row = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
+    if (row.count === 0) {
+      const defaultUsername = process.env.ADMIN_INITIAL_USERNAME || 'admin';
+      const defaultPassword = process.env.ADMIN_INITIAL_PASSWORD || 'admin123';
+      const hash = hashPassword(defaultPassword);
+      db.prepare(`
+        INSERT INTO users (username, password_hash, name, role, is_active)
+        VALUES (?, ?, ?, 'ADMIN', 1)
+      `).run(defaultUsername, hash, 'Sistem Yöneticisi');
+      console.log(`[Auth] Varsayılan yönetici hesabı oluşturuldu.`);
+      console.log(`[Auth] Kullanıcı adı: ${defaultUsername}`);
+      console.log(`[Auth] Parola: ${defaultPassword}`);
+    }
   }
 };

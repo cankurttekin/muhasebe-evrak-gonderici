@@ -18,12 +18,20 @@ import { BulkSendModal } from './components/BulkSendModal';
 import { SendHistoryModal } from './components/SendHistoryModal';
 import { SettingsModal } from './components/SettingsModal';
 import { HelpModal } from './components/HelpModal';
-import { DashboardSummary, Mukellef, ZirveDoc, WhatsAppStatus, api } from './api';
+import { UsersModal } from './components/UsersModal';
+import { ChangePasswordModal } from './components/ChangePasswordModal';
+import { LoginPage } from './components/LoginPage';
+import { DashboardSummary, Mukellef, ZirveDoc, WhatsAppStatus, AuthUser, api } from './api';
 import { useTheme } from './useTheme';
 
 export const App: React.FC = () => {
   const { theme, setTheme } = useTheme();
 
+  // Authentication state
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
+
+  // Data state
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -41,6 +49,8 @@ export const App: React.FC = () => {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState<boolean>(false);
+  const [isUsersModalOpen, setIsUsersModalOpen] = useState<boolean>(false);
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState<boolean>(false);
 
   // Bulk send modal state
   const [sendModalConfig, setSendModalConfig] = useState<{
@@ -56,13 +66,39 @@ export const App: React.FC = () => {
     selectedMukellefCodes: []
   });
 
+  // Check initial authentication
+  useEffect(() => {
+    api.onUnauthorized(() => {
+      setCurrentUser(null);
+    });
+
+    const token = api.getToken();
+    if (token) {
+      api.getMe()
+        .then((res) => {
+          if (res.success && res.user) {
+            setCurrentUser(res.user);
+          } else {
+            setCurrentUser(null);
+          }
+        })
+        .catch(() => setCurrentUser(null))
+        .finally(() => setIsAuthChecking(false));
+    } else {
+      setIsAuthChecking(false);
+    }
+  }, []);
+
   const fetchData = useCallback(async (period?: string) => {
+    if (!api.getToken()) return;
     setIsLoading(true);
     try {
       const summary = await api.getSummary(period, searchTerm, statusFilter);
-      setData(summary);
-      if (!selectedPeriod && summary.selectedPeriod) {
-        setSelectedPeriod(summary.selectedPeriod);
+      if (summary && summary.success) {
+        setData(summary);
+        if (!selectedPeriod && summary.selectedPeriod) {
+          setSelectedPeriod(summary.selectedPeriod);
+        }
       }
     } catch (err) {
       console.error('Error fetching dashboard summary:', err);
@@ -72,23 +108,29 @@ export const App: React.FC = () => {
   }, [searchTerm, statusFilter, selectedPeriod]);
 
   const fetchWaStatus = useCallback(async () => {
+    if (!api.getToken()) return;
     try {
       const status = await api.getWhatsAppStatus();
-      setWaStatus(status);
+      if (status) {
+        setWaStatus(status);
+      }
     } catch (err) {
       console.error('Error fetching WhatsApp status:', err);
     }
   }, []);
 
   useEffect(() => {
-    fetchData(selectedPeriod || undefined);
-    fetchWaStatus();
-  }, [selectedPeriod, searchTerm, statusFilter]);
+    if (currentUser) {
+      fetchData(selectedPeriod || undefined);
+      fetchWaStatus();
+    }
+  }, [currentUser, selectedPeriod, searchTerm, statusFilter]);
 
   useEffect(() => {
+    if (!currentUser) return;
     const timer = setInterval(fetchWaStatus, 5000);
     return () => clearInterval(timer);
-  }, [fetchWaStatus]);
+  }, [currentUser, fetchWaStatus]);
 
   // Selection handlers
   const handleToggleDocSelect = (id: string) => {
@@ -98,14 +140,28 @@ export const App: React.FC = () => {
   };
 
   const handleSelectAllMukellefDocs = (_mukellefCode: string, docIds: string[]) => {
-    setSelectedDocIds(prev => Array.from(new Set([...prev, ...docIds])));
+    setSelectedDocIds(prev => {
+      const combined = new Set([...prev, ...docIds]);
+      return Array.from(combined);
+    });
   };
 
   const handleDeselectAllMukellefDocs = (docIds: string[]) => {
     setSelectedDocIds(prev => prev.filter(id => !docIds.includes(id)));
   };
 
-  const handleClearSelection = () => {
+  const handleSelectAllCurrentView = () => {
+    if (!data) return;
+    const allIds: string[] = [];
+    for (const m of data.mukellefler) {
+      for (const d of m.documents) {
+        allIds.push(d.id);
+      }
+    }
+    setSelectedDocIds(allIds);
+  };
+
+  const handleDeselectAllCurrentView = () => {
     setSelectedDocIds([]);
   };
 
@@ -168,8 +224,37 @@ export const App: React.FC = () => {
     });
   };
 
+  const handleLogout = async () => {
+    await api.logout();
+    setCurrentUser(null);
+  };
+
+  // 1. Loading auth state
+  if (isAuthChecking) {
+    return (
+      <div className="min-h-screen bg-slate-100 dark:bg-zinc-950 flex flex-col justify-center items-center text-slate-600 dark:text-zinc-400">
+        <RotateCw className="w-8 h-8 animate-spin text-blue-600 mb-2" />
+        <span className="text-xs font-semibold">Oturum kontrol ediliyor...</span>
+      </div>
+    );
+  }
+
+  // 2. Unauthenticated: Show Login Page
+  if (!currentUser) {
+    return (
+      <LoginPage 
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          fetchData();
+          fetchWaStatus();
+        }} 
+      />
+    );
+  }
+
   const isConnected = waStatus?.status === 'CONNECTED';
 
+  // 3. Authenticated: Render Main Application
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col font-sans text-slate-800 dark:text-zinc-100 transition-colors">
       {/* Navbar */}
@@ -178,18 +263,25 @@ export const App: React.FC = () => {
         selectedPeriod={selectedPeriod}
         onPeriodChange={(p) => {
           setSelectedPeriod(p);
-          setSelectedDocIds([]);
+          fetchData(p);
         }}
         onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
         onOpenHistoryModal={() => setIsHistoryModalOpen(true)}
         onOpenHelpModal={() => setIsHelpModalOpen(true)}
-        onRefresh={() => fetchData(selectedPeriod)}
+        onRefresh={() => {
+          fetchData(selectedPeriod);
+          fetchWaStatus();
+        }}
         isLoading={isLoading}
+        currentUser={currentUser}
+        onOpenUsersModal={() => setIsUsersModalOpen(true)}
+        onOpenChangePasswordModal={() => setIsChangePasswordModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex-1 w-full space-y-3.5">
-        {/* Top Dashboard Metrics */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex-1 w-full space-y-4">
+        {/* Dashboard Stats */}
         {data && (
           <DashboardStats
             stats={data.stats}
@@ -197,139 +289,155 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* Toolbar & Filters */}
-        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-2.5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-2.5">
-          {/* Status Filter Tabs & Expand All */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-            <button
-              onClick={() => setStatusFilter('ALL')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                statusFilter === 'ALL'
-                  ? 'bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-sm'
-                  : 'text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800'
-              }`}
-            >
-              Tümü ({data?.totalMukellefs || 0})
-            </button>
-            <button
-              onClick={() => setStatusFilter('PENDING')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                statusFilter === 'PENDING'
-                  ? 'bg-amber-500 text-white shadow-sm'
-                  : 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-200/60 dark:border-amber-800'
-              }`}
-            >
-              <Clock className="w-3 h-3" />
-              <span>Eksik / Bekleyenler ({data?.stats.pendingMukellefs || 0})</span>
-            </button>
-            <button
-              onClick={() => setStatusFilter('ALL_SENT')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
-                statusFilter === 'ALL_SENT'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200/60 dark:border-emerald-800'
-              }`}
-            >
-              <CheckCircle2 className="w-3 h-3" />
-              <span>Tamamlananlar ({data?.stats.fullySentMukellefs || 0})</span>
-            </button>
+        {/* Toolbar: Search, Filters, Bulk Action Buttons */}
+        <div className="bg-white dark:bg-zinc-900 rounded-xl p-3 border border-slate-200 dark:border-zinc-800 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 transition-colors">
+          {/* Left: Search input */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Firma adı, kod, VKN veya telefon ile ara..."
+              className="w-full text-xs pl-9 pr-3 py-2 border border-slate-200 dark:border-zinc-700 rounded-lg bg-slate-50 dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+            />
+          </div>
 
-            {/* Expand / Collapse All Button */}
-            <div className="h-4 w-[1px] bg-slate-200 dark:bg-zinc-800 mx-1 hidden sm:block" />
+          {/* Right: Filters & Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Status Filter */}
+            <div className="inline-flex rounded-lg border border-slate-200 dark:border-zinc-700 p-0.5 bg-slate-50 dark:bg-zinc-800 text-xs">
+              <button
+                onClick={() => setStatusFilter('ALL')}
+                className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+                  statusFilter === 'ALL'
+                    ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-600 dark:text-zinc-300 hover:text-slate-900'
+                }`}
+              >
+                Tümü
+              </button>
+              <button
+                onClick={() => setStatusFilter('PENDING')}
+                className={`px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1 ${
+                  statusFilter === 'PENDING'
+                    ? 'bg-amber-500 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-zinc-300 hover:text-amber-600 dark:hover:text-amber-400'
+                }`}
+              >
+                <Clock className="w-3 h-3" />
+                <span>Eksik Olanlar</span>
+              </button>
+              <button
+                onClick={() => setStatusFilter('ALL_SENT')}
+                className={`px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1 ${
+                  statusFilter === 'ALL_SENT'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-zinc-300 hover:text-emerald-600 dark:hover:text-emerald-400'
+                }`}
+              >
+                <CheckCircle2 className="w-3 h-3" />
+                <span>Tamamlananlar</span>
+              </button>
+            </div>
+
+            {/* Selection actions if any selected */}
+            {selectedDocIds.length > 0 && (
+              <button
+                onClick={handleSendSelectedDocs}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm shadow-blue-200 dark:shadow-none transition-colors"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Seçilenleri Gönder ({selectedDocIds.length})</span>
+              </button>
+            )}
+
+            {/* Bulk send all pending for period */}
+            <button
+              onClick={handleSendAllPendingThisMonth}
+              disabled={!data || data.stats.pendingMukellefs === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm shadow-indigo-200 dark:shadow-none transition-colors disabled:bg-slate-300 dark:disabled:bg-zinc-800 disabled:cursor-not-allowed"
+              title="Bu dönem henüz evrakı gitmemiş tüm mükelleflere sırayla gönder"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Bekleyenleri Toplu Gönder</span>
+              <span className="sm:hidden">Toplu Gönder</span>
+              {data && data.stats.pendingMukellefs > 0 && (
+                <span className="bg-indigo-800/80 text-white text-[10px] px-1.5 py-0.2 rounded-full font-mono">
+                  {data.stats.pendingMukellefs}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* List Controls: Count & Select All */}
+        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400 px-1">
+          <div className="flex items-center gap-2">
+            <span>
+              Toplam <strong>{data?.mukellefler.length || 0}</strong> mükellef listeleniyor
+            </span>
+            {selectedDocIds.length > 0 && (
+              <span className="text-blue-600 dark:text-blue-400 font-semibold">
+                ({selectedDocIds.length} evrak seçildi)
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setIsAllExpanded(!isAllExpanded)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 border border-slate-200 dark:border-zinc-800 transition-colors whitespace-nowrap"
-              title={isAllExpanded ? 'Tüm listeleri daralt' : 'Tüm listeleri genişlet'}
+              className="flex items-center gap-1 text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white transition-colors"
             >
               {isAllExpanded ? (
                 <>
-                  <ChevronsUp className="w-3 h-3" />
+                  <ChevronsUp className="w-3.5 h-3.5" />
                   <span>Tümünü Daralt</span>
                 </>
               ) : (
                 <>
-                  <ChevronsDown className="w-3 h-3" />
+                  <ChevronsDown className="w-3.5 h-3.5" />
                   <span>Tümünü Genişlet</span>
                 </>
               )}
             </button>
-          </div>
 
-          {/* Search and Global Action */}
-          <div className="flex items-center gap-2">
-            {/* Search Input */}
-            <div className="relative flex-1 sm:w-60">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Mükellef ara (ünvan, kod)..."
-                className="w-full text-xs pl-8 pr-2.5 py-1.5 border border-slate-200 dark:border-zinc-750 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 dark:bg-zinc-850 text-slate-800 dark:text-zinc-100 focus:bg-white dark:focus:bg-zinc-800"
-              />
-            </div>
-
-            {/* Quick Bulk Action Button */}
-            {data && data.stats.pendingDocs > 0 && (
+            {selectedDocIds.length > 0 ? (
               <button
-                onClick={handleSendAllPendingThisMonth}
-                disabled={isSending}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm shadow-blue-200 dark:shadow-none transition-colors whitespace-nowrap"
+                onClick={handleDeselectAllCurrentView}
+                className="text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white transition-colors"
               >
-                <Send className="w-3.5 h-3.5" />
-                <span>Bekleyenleri Toplu Gönder</span>
+                Seçimi Temizle
+              </button>
+            ) : (
+              <button
+                onClick={handleSelectAllCurrentView}
+                className="text-slate-600 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              >
+                Tüm Evrakları Seç
               </button>
             )}
           </div>
         </div>
 
-        {/* Selected Items Floating Action Bar */}
-        {selectedDocIds.length > 0 && (
-          <div className="bg-slate-900 dark:bg-zinc-900 text-white px-3.5 py-2.5 rounded-xl shadow-lg border border-slate-750 dark:border-zinc-800 flex items-center justify-between animate-in slide-in-from-top duration-200">
-            <div className="flex items-center gap-2.5">
-              <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
-              <span className="text-xs font-medium">
-                <strong className="text-blue-300 font-bold">{selectedDocIds.length}</strong> evrak seçildi
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleClearSelection}
-                className="text-xs text-slate-300 hover:text-white px-2 py-1 rounded hover:bg-slate-800 dark:hover:bg-zinc-800 transition-colors"
-              >
-                Temizle
-              </button>
-              <button
-                onClick={handleSendSelectedDocs}
-                className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors shadow-sm"
-              >
-                <Send className="w-3 h-3" />
-                <span>Seçilenleri Gönder ({selectedDocIds.length})</span>
-              </button>
-            </div>
+        {/* Mukellef Cards List */}
+        {isLoading ? (
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 p-12 text-center text-slate-400 dark:text-zinc-500 space-y-3">
+            <RotateCw className="w-8 h-8 animate-spin mx-auto text-blue-600" />
+            <p className="text-sm font-medium">Zirve klasörleri ve evraklar taranıyor...</p>
           </div>
-        )}
-
-        {/* Mükellef Cards List */}
-        <div className="space-y-2.5">
-          {isLoading && !data ? (
-            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-8 text-center space-y-2">
-              <RotateCw className="w-6 h-6 text-blue-600 animate-spin mx-auto" />
-              <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium">Zirve evrakları taranıyor...</p>
-            </div>
-          ) : !data || data.mukellefler.length === 0 ? (
-            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-8 text-center space-y-1.5">
-              <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-400 flex items-center justify-center mx-auto">
-                <Search className="w-4 h-4" />
-              </div>
-              <h4 className="text-xs font-bold text-slate-700 dark:text-zinc-300">Mükellef veya Evrak Bulunamadı</h4>
-              <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
-                Arama kriterlerinize veya seçilen döneme ait evrak bulunamadı.
-              </p>
-            </div>
-          ) : (
-            data.mukellefler.map((mukellef) => (
+        ) : !data || data.mukellefler.length === 0 ? (
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 p-12 text-center text-slate-400 dark:text-zinc-500 space-y-2">
+            <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300">
+              Kayıt Bulunamadı
+            </p>
+            <p className="text-xs">
+              Arama kriterlerine veya seçilen döneme ({selectedPeriod}) uygun mükellef bulunamadı.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {data.mukellefler.map((mukellef) => (
               <MukellefCard
                 key={mukellef.code}
                 mukellef={mukellef}
@@ -344,9 +452,9 @@ export const App: React.FC = () => {
                 onEditPhone={(m) => setEditPhoneMukellef(m)}
                 isSending={isSending}
               />
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </main>
 
       {/* Footer with Developer Credit & Color-coded WhatsApp status */}
@@ -361,7 +469,6 @@ export const App: React.FC = () => {
             </span>
           </div>
 
-          {/* Color-coded WhatsApp status in footer: RED when disconnected, GREEN when connected */}
           <div className="flex items-center gap-3 text-[11px]">
             <span>Dönem: {selectedPeriod || '-'}</span>
             <span>•</span>
@@ -424,6 +531,19 @@ export const App: React.FC = () => {
         onWaStatusChange={fetchWaStatus}
         currentTheme={theme}
         onThemeChange={setTheme}
+      />
+
+      {/* Admin User Management Modal */}
+      <UsersModal
+        isOpen={isUsersModalOpen}
+        onClose={() => setIsUsersModalOpen(false)}
+        currentUser={currentUser}
+      />
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={isChangePasswordModalOpen}
+        onClose={() => setIsChangePasswordModalOpen(false)}
       />
     </div>
   );

@@ -3,7 +3,11 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import { CONFIG } from './config.js';
+import { dbService } from './db.js';
 import { apiRouter } from './routes/api.js';
+import { authRouter } from './routes/auth.js';
+import { usersRouter } from './routes/users.js';
+import { requireAuth } from './middleware/auth.js';
 import { generateMockZirveData } from './mockGenerator.js';
 
 const app = express();
@@ -12,8 +16,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// API Routes
-app.use('/api', apiRouter);
+// Public Auth routes
+app.use('/api/auth', authRouter);
+
+// Protected User Management routes (Admin only)
+app.use('/api/users', usersRouter);
+
+// Protected API Routes (requires authenticated session)
+app.use('/api', requireAuth, apiRouter);
 
 // Serve frontend in production build if exists
 const frontendDist = path.resolve(process.cwd(), '../frontend/dist');
@@ -29,6 +39,11 @@ if (fs.existsSync(frontendDist)) {
 
 // Start server
 async function start() {
+  // Initialize initial admin user if database is fresh
+  dbService.seedInitialAdmin();
+  // Clean up any expired sessions
+  dbService.cleanupExpiredSessions();
+
   // If zirvedata directory doesn't exist, generate mock data automatically
   if (!fs.existsSync(CONFIG.ZIRVE_DATA_PATH)) {
     console.log(`[Zirve] Data folder not found at ${CONFIG.ZIRVE_DATA_PATH}. Initializing mock data...`);

@@ -1,5 +1,16 @@
 // API Client for Zirve WhatsApp Evrak Gönderici
 
+export type UserRole = 'ADMIN' | 'USER';
+
+export interface AuthUser {
+  id: number;
+  username: string;
+  name: string;
+  role: UserRole;
+  is_active?: number;
+  created_at?: string;
+}
+
 export interface ZirveDoc {
   id: string;
   fileName: string;
@@ -72,7 +83,8 @@ export interface SmtpConfig {
   port: number;
   secure: boolean;
   user: string;
-  pass: string;
+  pass?: string;
+  hasPassword?: boolean;
   fromName: string;
   fromEmail: string;
 }
@@ -84,24 +96,131 @@ export interface WhatsAppStatus {
   connectedPhone: string | null;
 }
 
+// Global token storage
+let currentToken = localStorage.getItem('auth_token') || '';
+let unauthorizedHandler: (() => void) | null = null;
+
+async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers || {});
+  if (!headers.has('Content-Type') && options.body && typeof options.body === 'string') {
+    headers.set('Content-Type', 'application/json');
+  }
+  if (currentToken) {
+    headers.set('Authorization', `Bearer ${currentToken}`);
+  }
+
+  const res = await fetch(url, { ...options, headers });
+
+  if (res.status === 401 && !url.includes('/api/auth/login')) {
+    currentToken = '';
+    localStorage.removeItem('auth_token');
+    if (unauthorizedHandler) {
+      unauthorizedHandler();
+    }
+  }
+
+  return res.json() as Promise<T>;
+}
+
 export const api = {
+  // Token management
+  getToken(): string {
+    return currentToken;
+  },
+  setToken(token: string) {
+    currentToken = token;
+    localStorage.setItem('auth_token', token);
+  },
+  removeToken() {
+    currentToken = '';
+    localStorage.removeItem('auth_token');
+  },
+  onUnauthorized(cb: () => void) {
+    unauthorizedHandler = cb;
+  },
+
+  // Auth endpoints
+  async login(username: string, password: string): Promise<{ success: boolean; token?: string; user?: AuthUser; error?: string }> {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (data.success && data.token) {
+      api.setToken(data.token);
+    }
+    return data;
+  },
+
+  async logout(): Promise<void> {
+    try {
+      await request('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // ignore
+    } finally {
+      api.removeToken();
+    }
+  },
+
+  async getMe(): Promise<{ success: boolean; user?: AuthUser; error?: string }> {
+    return request<{ success: boolean; user?: AuthUser; error?: string }>('/api/auth/me');
+  },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    return request('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+  },
+
+  // User Management endpoints (Admin only)
+  async getUsers(): Promise<{ success: boolean; users: AuthUser[]; error?: string }> {
+    return request('/api/users');
+  },
+
+  async createUser(data: { username: string; password: string; name: string; role: UserRole }): Promise<{ success: boolean; user?: AuthUser; error?: string }> {
+    return request('/api/users', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  async updateUser(id: number, data: { name?: string; role?: UserRole; is_active?: number }): Promise<{ success: boolean; message?: string; error?: string }> {
+    return request(`/api/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  },
+
+  async resetUserPassword(id: number, newPassword: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    return request(`/api/users/${id}/reset-password`, {
+      method: 'POST',
+      body: JSON.stringify({ newPassword })
+    });
+  },
+
+  async deleteUser(id: number): Promise<{ success: boolean; message?: string; error?: string }> {
+    return request(`/api/users/${id}`, {
+      method: 'DELETE'
+    });
+  },
+
+  // Main Dashboard endpoints
   async getSummary(period?: string, search?: string, status?: string): Promise<DashboardSummary> {
     const params = new URLSearchParams();
     if (period) params.append('period', period);
     if (search) params.append('search', search);
     if (status && status !== 'ALL') params.append('status', status);
 
-    const res = await fetch(`/api/summary?${params.toString()}`);
-    return res.json();
+    return request<DashboardSummary>(`/api/summary?${params.toString()}`);
   },
 
   async updateMukellef(code: string, data: { customName?: string; customPhone?: string; customEmail?: string; notes?: string }) {
-    const res = await fetch(`/api/mukellefler/${code}/override`, {
+    return request(`/api/mukellefler/${code}/override`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    return res.json();
   },
 
   async sendBatch(data: {
@@ -112,12 +231,16 @@ export const api = {
     customEmail?: string;
     customMessage?: string;
   }) {
-    const res = await fetch('/api/send/batch', {
+    return request<{
+      success: boolean;
+      sentCount: number;
+      failedCount: number;
+      results: Array<{ documentName: string; success: boolean; channel?: string; error?: string }>;
+      error?: string;
+    }>('/api/send/batch', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    return res.json();
   },
 
   async sendBulk(data: {
@@ -127,34 +250,35 @@ export const api = {
     onlyPending?: boolean;
     customMessage?: string;
   }) {
-    const res = await fetch('/api/send/bulk', {
+    return request<{
+      success: boolean;
+      totalSent: number;
+      totalFailed: number;
+      clientCount: number;
+      clientResults: Array<{ mukellef: string; sent: number; failed: number }>;
+      error?: string;
+    }>('/api/send/bulk', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    return res.json();
   },
 
   async getLogs(limit = 100, period?: string): Promise<{ success: boolean; logs: SendLogItem[] }> {
     const params = new URLSearchParams({ limit: String(limit) });
     if (period) params.append('period', period);
-    const res = await fetch(`/api/logs?${params.toString()}`);
-    return res.json();
+    return request<{ success: boolean; logs: SendLogItem[] }>(`/api/logs?${params.toString()}`);
   },
 
   async getWhatsAppStatus(): Promise<WhatsAppStatus> {
-    const res = await fetch('/api/whatsapp/status');
-    return res.json();
+    return request<WhatsAppStatus>('/api/whatsapp/status');
   },
 
   async connectWhatsApp() {
-    const res = await fetch('/api/whatsapp/connect', { method: 'POST' });
-    return res.json();
+    return request('/api/whatsapp/connect', { method: 'POST' });
   },
 
   async disconnectWhatsApp() {
-    const res = await fetch('/api/whatsapp/disconnect', { method: 'POST' });
-    return res.json();
+    return request('/api/whatsapp/disconnect', { method: 'POST' });
   },
 
   async getSettings(): Promise<{
@@ -166,30 +290,26 @@ export const api = {
       isSmtpConfigured: boolean;
     };
   }> {
-    const res = await fetch('/api/settings');
-    return res.json();
+    return request('/api/settings');
   },
 
   async saveSettings(data: { messageTemplate?: string; smtp?: Partial<SmtpConfig> }) {
-    const res = await fetch('/api/settings', {
+    return request('/api/settings', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    return res.json();
   },
 
   async testSmtp(smtpConfig: SmtpConfig): Promise<{ success: boolean; message: string }> {
-    const res = await fetch('/api/email/test-smtp', {
+    return request('/api/email/test-smtp', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ smtpConfig })
     });
-    return res.json();
   },
 
   getPreviewUrl(docId: string): string {
-    return `/api/documents/preview/${docId}`;
+    const token = api.getToken();
+    return `/api/documents/preview/${docId}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
   },
 
   getWhatsAppWebUrl(phone: string, text: string): string {

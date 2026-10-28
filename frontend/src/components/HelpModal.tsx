@@ -150,10 +150,10 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                 <div className="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-750 space-y-1">
                   <div className="font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-1.5">
                     <Mail className="w-4 h-4 text-indigo-500" />
-                    <span>Ofis SMTP Entegrasyonu</span>
+                    <span>E-Posta(SMTP) Entegrasyonu</span>
                   </div>
                   <p className="text-slate-600 dark:text-zinc-400">
-                    Kendi kurumsal mail adresiniz veya Gmail üzerinden profesyonel HTML formatında gönderim yapın.
+                    Kendi kurumsal veya Gmail vb mail adresiniz üzerinden gönderim yapın.
                   </p>
                 </div>
               </div>
@@ -213,7 +213,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                 <ul className="list-disc pl-5 space-y-1 text-slate-700 dark:text-zinc-300">
                   <li><strong>Host:</strong> Sunucu adresi (örn: <code>mail.sirketiniz.com</code> veya <code>smtp.gmail.com</code>)</li>
                   <li><strong>Port:</strong> Genellikle <code>587</code> (STARTTLS) veya <code>465</code> (SSL/TLS)</li>
-                  <li><strong>Kullanıcı Adı ve Şifre:</strong> Kurumsal mail hesabınızın şifresi (veya Gmail uygulama şifresi)</li>
+                  <li><strong>Kullanıcı Adı ve Parola:</strong> Kurumsal mail hesabınızın parolası (veya Gmail uygulama parolası)</li>
                   <li><strong>Bağlantıyı Test Et:</strong> Bilgileri girdikten sonra butona basarak bağlantıyı anında doğrulayın.</li>
                 </ul>
               </div>
@@ -226,9 +226,9 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
 
               <div className="space-y-2.5">
                 <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-750">
-                  <span className="font-bold text-slate-900 dark:text-zinc-100">1. Kanal Seçimi (WhatsApp, E-posta, Her İkisi)</span>
+                  <span className="font-bold text-slate-900 dark:text-zinc-100">1. Kanal Seçimi (WhatsApp, E-posta, WhatsApp & E-posta)</span>
                   <p className="text-slate-600 dark:text-zinc-400 mt-0.5">
-                    Gönderim penceresinde <strong>[📱 WhatsApp]</strong>, <strong>[✉️ E-posta]</strong> veya <strong>[🚀 Her İkisi]</strong> butonlarından birini seçebilirsiniz.
+                    Gönderim penceresinde <strong>[WhatsApp]</strong>, <strong>[E-posta]</strong> veya <strong>[WhatsApp & E-posta]</strong> butonlarından birini seçebilirsiniz.
                   </p>
                 </div>
 

@@ -12,6 +12,49 @@ export interface SmtpConfig {
   fromEmail: string;
 }
 
+export interface PublicSmtpConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  hasPassword: boolean;
+  fromName: string;
+  fromEmail: string;
+}
+
+export function formatSmtpError(err: any): string {
+  const msg = String(err?.message || err || '');
+
+  // Gmail or standard 535 / BadCredentials
+  if (
+    msg.includes('535') || 
+    msg.includes('BadCredentials') || 
+    msg.toLowerCase().includes('username and password not accepted') ||
+    msg.toLowerCase().includes('invalid login')
+  ) {
+    if (msg.toLowerCase().includes('google') || msg.toLowerCase().includes('gmail') || msg.toLowerCase().includes('gsmtp')) {
+      return 'Gmail Giriş Hatası: Kullanıcı adı veya parola kabul edilmedi (535 BadCredentials). Gmail için normal hesap parolanız yerine Google Hesabınızdan "2 Adımlı Doğrulama"yı açıp 16 haneli bir "Uygulama Parolası" (App Password) oluşturmalı ve onu girmelisiniz.';
+    }
+    return 'Giriş Hatası (535): E-posta adresi veya parola hatalı. Lütfen kullanıcı adınızı ve parolanızı kontrol edin. (Servis sağlayıcınız iki adımlı doğrulama veya uygulama parolası gerektiriyor olabilir).';
+  }
+
+  // Connection refused / timeout / address not found
+  if (msg.includes('ECONNREFUSED')) {
+    return 'Bağlantı Reddedildi (ECONNREFUSED): SMTP sunucusuna belirtilen port üzerinden bağlanılamadı. Lütfen sunucu adresi ve port (587 veya 465) bilgilerini kontrol edin.';
+  }
+  if (msg.includes('ENOTFOUND')) {
+    return 'Sunucu Bulunamadı (ENOTFOUND): Girilen SMTP sunucu adresi çözümlenemedi. Lütfen host adresini kontrol edin.';
+  }
+  if (msg.includes('ETIMEDOUT')) {
+    return 'Zaman Aşımı (ETIMEDOUT): SMTP sunucusuna bağlanırken zaman aşımı oluştu. Port numarasını veya güvenlik duvarı ayarlarını kontrol edin.';
+  }
+  if (msg.includes('self signed certificate') || msg.includes('DEPTH_ZERO_SELF_SIGNED_CERT')) {
+    return 'SSL Sertifika Hatası: Sunucu SSL/TLS sertifikası doğrulanamadı.';
+  }
+
+  return msg;
+}
+
 class EmailService {
   public getSmtpConfig(): SmtpConfig {
     return {
@@ -25,12 +68,31 @@ class EmailService {
     };
   }
 
+  /**
+   * Returns SMTP configuration safe for client consumption (omits password, indicates if password exists).
+   */
+  public getPublicSmtpConfig(): PublicSmtpConfig {
+    const full = this.getSmtpConfig();
+    return {
+      host: full.host,
+      port: full.port,
+      secure: full.secure,
+      user: full.user,
+      hasPassword: Boolean(full.pass && full.pass.trim() !== ''),
+      fromName: full.fromName,
+      fromEmail: full.fromEmail
+    };
+  }
+
   public saveSmtpConfig(config: Partial<SmtpConfig>): void {
     if (config.host !== undefined) dbService.setSetting('smtp_host', config.host);
     if (config.port !== undefined) dbService.setSetting('smtp_port', String(config.port));
     if (config.secure !== undefined) dbService.setSetting('smtp_secure', String(config.secure));
     if (config.user !== undefined) dbService.setSetting('smtp_user', config.user);
-    if (config.pass !== undefined) dbService.setSetting('smtp_pass', config.pass);
+    // Only update password if a new non-empty password was explicitly provided
+    if (config.pass !== undefined && config.pass.trim() !== '') {
+      dbService.setSetting('smtp_pass', config.pass.trim());
+    }
     if (config.fromName !== undefined) dbService.setSetting('smtp_from_name', config.fromName);
     if (config.fromEmail !== undefined) dbService.setSetting('smtp_from_email', config.fromEmail);
   }
@@ -56,18 +118,29 @@ class EmailService {
     });
   }
 
-  public async testConnection(configOverride?: SmtpConfig): Promise<{ success: boolean; message: string }> {
+  public async testConnection(configOverride?: Partial<SmtpConfig>): Promise<{ success: boolean; message: string }> {
     try {
-      const config = configOverride || this.getSmtpConfig();
+      const current = this.getSmtpConfig();
+      const config: SmtpConfig = {
+        host: configOverride?.host !== undefined ? configOverride.host : current.host,
+        port: configOverride?.port !== undefined ? configOverride.port : current.port,
+        secure: configOverride?.secure !== undefined ? configOverride.secure : current.secure,
+        user: configOverride?.user !== undefined ? configOverride.user : current.user,
+        // If password was provided in test, use it; otherwise fall back to currently saved password
+        pass: (configOverride?.pass && configOverride.pass.trim() !== '') ? configOverride.pass.trim() : current.pass,
+        fromName: configOverride?.fromName !== undefined ? configOverride.fromName : current.fromName,
+        fromEmail: configOverride?.fromEmail !== undefined ? configOverride.fromEmail : current.fromEmail
+      };
+
       if (!config.host || !config.user || !config.pass) {
-        return { success: false, message: 'Sunucu adresi, kullanıcı adı ve şifre zorunludur.' };
+        return { success: false, message: 'Sunucu adresi, kullanıcı adı ve parola zorunludur.' };
       }
       const transporter = this.createTransporter(config);
       await transporter.verify();
       return { success: true, message: 'SMTP sunucu bağlantısı başarıyla doğrulandı.' };
     } catch (err: any) {
       console.error('[EmailService] SMTP test error:', err);
-      return { success: false, message: err.message || 'SMTP sunucusuna bağlanılamadı.' };
+      return { success: false, message: formatSmtpError(err) };
     }
   }
 
@@ -113,17 +186,20 @@ class EmailService {
 
     const html = `
       <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="color: #2563eb; margin-top: 0; font-size: 18px; border-bottom: 2px solid #2563eb; padding-bottom: 8px;">
+          Muhasebe Evrak Bildirimi
+        </h2>
         <p style="font-size: 14px; margin: 16px 0;">
           ${formattedMessage}
         </p>
         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; margin: 16px 0;">
-          <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #475569;">Ekli Evraklar (${documents.length} Adet)</h4>
+          <h4 style="margin: 0 0 8px 0; font-size: 13px; color: #475569; text-transform: uppercase;">Ekli Evraklar (${documents.length} Adet)</h4>
           <ul style="margin: 0; padding-left: 20px; font-size: 13px;">
             ${docListHtml}
           </ul>
         </div>
         <p style="font-size: 12px; color: #64748b; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
-          Bu e-posta, evrak gönderim sistemi tarafından otomatik olarak iletilmiştir. Bir hata olduğunu düşünüyorsanız lütfen muhasebe ofisi ile iletişime geçiniz.
+          Bu e-posta Evrak Gönderici otomasyon sistemi tarafından gönderilmiştir. Lütfen gerekmedikçe yanıtlamayınız.
         </p>
       </div>
     `;
@@ -167,7 +243,8 @@ class EmailService {
         results
       };
     } catch (err: any) {
-      console.error(`[EmailService] Failed to send email to ${email}:`, err);
+      const friendlyError = formatSmtpError(err);
+      console.error(`[EmailService] Failed to send email to ${email}:`, friendlyError);
 
       for (const doc of documents) {
         dbService.recordSendLog({
@@ -181,10 +258,10 @@ class EmailService {
           channel: 'EMAIL',
           email,
           status: 'FAILED',
-          error_message: err.message,
+          error_message: friendlyError,
           batch_id: batchId
         });
-        results.push({ documentName: doc.fileName, success: false, error: err.message });
+        results.push({ documentName: doc.fileName, success: false, error: friendlyError });
       }
 
       return {

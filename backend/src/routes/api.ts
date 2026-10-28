@@ -5,7 +5,7 @@ import { CONFIG } from '../config.js';
 import { dbService } from '../db.js';
 import { scanZirveData } from '../zirveScanner.js';
 import { whatsappService } from '../whatsappService.js';
-import { emailService } from '../emailService.js';
+import { emailService, formatSmtpError } from '../emailService.js';
 
 export const apiRouter = Router();
 
@@ -389,7 +389,7 @@ apiRouter.get('/settings', (_req: Request, res: Response) => {
     settings: {
       messageTemplate: template,
       zirveDataPath: CONFIG.ZIRVE_DATA_PATH,
-      smtp: emailService.getSmtpConfig(),
+      smtp: emailService.getPublicSmtpConfig(),
       isSmtpConfigured: emailService.isConfigured()
     }
   });
@@ -413,6 +413,6 @@ apiRouter.post('/email/test-smtp', async (req: Request, res: Response) => {
     const result = await emailService.testConnection(smtpConfig);
     res.json(result);
   } catch (err: any) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: formatSmtpError(err) });
   }
 });

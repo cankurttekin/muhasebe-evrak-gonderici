@@ -212,7 +212,7 @@ export const BulkSendModal: React.FC<BulkSendModalProps> = ({
                 }`}
               >
                 <Send className="w-3.5 h-3.5 text-indigo-500" />
-                <span>Her İkisi</span>
+                <span>WhatsApp & E-posta</span>
               </button>
             </div>
           </div>
@@ -280,7 +280,7 @@ export const BulkSendModal: React.FC<BulkSendModalProps> = ({
                   <span className="font-bold text-blue-600 dark:text-blue-400">
                     {channel === 'WHATSAPP' && '📱 Yalnızca WhatsApp'}
                     {channel === 'EMAIL' && '✉️ Yalnızca E-posta'}
-                    {channel === 'BOTH' && '🚀 WhatsApp ve E-posta'}
+                    {channel === 'BOTH' && '📱 WhatsApp ve ✉️ E-posta'}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-zinc-400 pt-1 border-t border-slate-200 dark:border-zinc-700">

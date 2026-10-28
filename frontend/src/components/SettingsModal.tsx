@@ -60,7 +60,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           setTemplate(res.settings.messageTemplate || '');
           setDataPath(res.settings.zirveDataPath || '');
           if (res.settings.smtp) {
-            setSmtp(res.settings.smtp);
+            setSmtp({
+              ...res.settings.smtp,
+              pass: '' // Do not populate password field
+            });
           }
         }
       });
@@ -84,6 +87,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     try {
       await api.saveSettings({ messageTemplate: template, smtp });
       setSaveSuccess(true);
+      setSmtp(prev => ({
+        ...prev,
+        hasPassword: prev.hasPassword || Boolean(prev.pass && prev.pass.trim() !== ''),
+        pass: '' // Clear input after save
+      }));
       setTimeout(() => setSaveSuccess(false), 2000);
     } finally {
       setIsSaving(false);
@@ -242,7 +250,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button
                 type="button"
                 onClick={handleTestSmtp}
-                disabled={isTestingSmtp || !smtp.host || !smtp.user || !smtp.pass}
+                disabled={isTestingSmtp || !smtp.host || !smtp.user || (!smtp.pass && !smtp.hasPassword)}
                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isTestingSmtp ? (
@@ -319,23 +327,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 mb-1">
-                  Şifre / Uygulama Şifresi
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300">
+                    Parola / Uygulama Parolası
+                  </label>
+                  {smtp.hasPassword && (
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.2 rounded border border-emerald-200 dark:border-emerald-800">
+                      Mevcut Parola Kayıtlı
+                    </span>
+                  )}
+                </div>
                 <input
                   type="password"
-                  value={smtp.pass}
+                  value={smtp.pass || ''}
                   onChange={(e) => setSmtp({ ...smtp, pass: e.target.value })}
-                  placeholder="••••••••"
+                  placeholder={smtp.hasPassword ? '•••••••• (Kayıtlı, değiştirmek için yazın)' : 'Parolanızı girin...'}
                   className="w-full text-xs border border-slate-300 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+                {/*
+                <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">
+                  Gmail için: Google Hesabı &gt; Güvenlik &gt; 2 Adımlı Doğrulama &gt; 16 haneli Uygulama Parolası
+                </p>
+                */}
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 mb-1">
-                  Gönderici Adı (Görünen İsim)
+                  Gönderici Ad
                 </label>
                 <input
                   type="text"
@@ -348,7 +368,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <div>
                 <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 mb-1">
-                  Gönderici E-posta (From)
+                  Gönderici E-posta
                 </label>
                 <input
                   type="email"
@@ -483,7 +503,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm shadow-blue-200 dark:shadow-none transition-colors"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  <span>{isSaving ? 'Kaydediliyor...' : 'Tüm Ayarları Kaydet'}</span>
+                  <span>{isSaving ? 'Kaydediliyor...' : 'Ayarları Kaydet'}</span>
                 </button>
               </div>
             </div>

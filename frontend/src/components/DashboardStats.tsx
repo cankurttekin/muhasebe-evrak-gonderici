@@ -38,7 +38,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({ stats, totalMuke
         {/* Total Docs */}
         <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-3 shadow-sm flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-medium text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Dönem Evrakları</span>
+            <span className="text-[11px] font-medium text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Evraklar</span>
             <div className="mt-0.5 flex items-baseline gap-1.5">
               <span className="text-xl font-bold text-slate-900 dark:text-zinc-100">{stats.totalDocs}</span>
               <span className="text-[11px] text-slate-500 dark:text-zinc-400">PDF</span>
